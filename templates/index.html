@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ESG Stock Prediction System - AI-powered stock recommendations using ESG scores and machine learning">
+    <title>ESG Stock Prediction System</title>
+
+    <!-- Bootstrap 5 + Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📈</text></svg>">
+</head>
+<body>
+
+    <!-- ============================================================
+    SIDEBAR
+    ============================================================ -->
+    {% include 'sidebar.html' %}
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- ============================================================
+    MAIN CONTENT
+    ============================================================ -->
+    <div class="main-content">
+
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <h1 class="page-title">
+                <i class="bi bi-house-fill"></i> Home
+            </h1>
+            <div class="top-navbar-right">
+                <div class="navbar-ticker-wrap">
+                    <div class="navbar-ticker-items" id="tickerItems"></div>
+                </div>
+                <div class="datetime-display">
+                    <i class="bi bi-clock me-1"></i>
+                    <span id="liveClock">Loading...</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero-section fade-in">
+            <div class="row align-items-center">
+                <div class="col-lg-7">
+                    <h1 class="hero-title">
+                        ESG-Powered<br>
+                        <span class="highlight">Stock Predictions</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        Leverage the power of Environmental, Social, and Governance scores combined
+                        with advanced machine learning to make smarter investment decisions.
+                        Our AI model analyzes technical indicators and ESG data to provide
+                        accurate Buy, Hold, or Sell recommendations.
+                    </p>
+                    <div class="d-flex flex-wrap gap-3">
+                        <a href="{{ url_for('dashboard') }}" class="btn-esg">
+                            <i class="bi bi-grid-3x3-gap-fill"></i> Go to Dashboard
+                        </a>
+                        <a href="{{ url_for('prediction') }}" class="btn-outline-esg">
+                            <i class="bi bi-graph-up-arrow"></i> Make a Prediction
+                        </a>
+                    </div>
+                </div>
+                <div class="col-lg-5 mt-4 mt-lg-0 text-center">
+                    <div class="position-relative">
+                        <i class="bi bi-graph-up-arrow" style="font-size: 12rem; color: rgba(76, 175, 80, 0.1);"></i>
+                        <div class="position-absolute top-50 start-50 translate-middle">
+                            <div class="text-center">
+                                <div class="display-3 fw-bold text-esg">{{ "%.1f"|format(stats.model_accuracy) }}%</div>
+                                <small class="text-secondary">Model Accuracy</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Row -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-3 col-6">
+                <div class="card text-center p-3 fade-in">
+                    <div class="card-body">
+                        <div class="display-5 fw-bold text-esg">{{ stats.total_stocks }}</div>
+                        <small class="text-secondary">Stocks Tracked</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card text-center p-3 fade-in">
+                    <div class="card-body">
+                        <div class="display-5 fw-bold text-esg">{{ "%.1f"|format(stats.model_accuracy) }}%</div>
+                        <small class="text-secondary">Model Accuracy</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card text-center p-3 fade-in">
+                    <div class="card-body">
+                        <div class="display-5 fw-bold text-esg">{{ stats.total_predictions }}</div>
+                        <small class="text-secondary">Predictions Made</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card text-center p-3 fade-in">
+                    <div class="card-body">
+                        <div class="display-5 fw-bold text-esg">{{ stats.watched_stocks }}</div>
+                        <small class="text-secondary">Watched Stocks</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <h3 class="mb-4"><i class="bi bi-stars text-esg me-2"></i> Key Features</h3>
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="feature-card slide-in">
+                    <div class="feature-icon" style="background: rgba(76, 175, 80, 0.15); color: #4caf50;">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <h5>AI-Powered Predictions</h5>
+                    <p>Advanced machine learning models including Random Forest, Gradient Boosting, and XGBoost analyze thousands of data points for accurate stock predictions.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card slide-in">
+                    <div class="feature-icon" style="background: rgba(33, 150, 243, 0.15); color: #2196F3;">
+                        <i class="bi bi-flower1"></i>
+                    </div>
+                    <h5>ESG Score Integration</h5>
+                    <p>Environmental, Social, and Governance scores are factored into every prediction, promoting sustainable and responsible investing decisions.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card slide-in">
+                    <div class="feature-icon" style="background: rgba(255, 152, 0, 0.15); color: #FF9800;">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <h5>Technical Indicators</h5>
+                    <p>Comprehensive technical analysis including SMA, EMA, RSI, MACD, and Bollinger Bands provides a complete picture of market trends.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card slide-in">
+                    <div class="feature-icon" style="background: rgba(156, 39, 176, 0.15); color: #9C27B0;">
+                        <i class="bi bi-bar-chart-fill"></i>
+                    </div>
+                    <h5>Performance Metrics</h5>
+                    <p>Detailed model performance metrics including accuracy, precision, recall, F1 score, and confusion matrices for complete transparency.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card slide-in">
+                    <div class="feature-icon" style="background: rgba(244, 67, 54, 0.15); color: #f44336;">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <h5>Risk Assessment</h5>
+                    <p>Each prediction comes with a risk level assessment (Low, Medium, High) combining market volatility and ESG risk factors.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card slide-in">
+                    <div class="feature-icon" style="background: rgba(0, 188, 212, 0.15); color: #00BCD4;">
+                        <i class="bi bi-phone"></i>
+                    </div>
+                    <h5>Responsive Dashboard</h5>
+                    <p>Modern, mobile-friendly dashboard with interactive charts and real-time data visualization for an exceptional user experience.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Stocks Preview -->
+        <h3 class="mb-4"><i class="bi bi-trophy text-esg me-2"></i> Top ESG Stocks</h3>
+        <div class="card fade-in">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table-esg mb-0">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Company</th>
+                                <th>Industry</th>
+                                <th>ESG Score</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stock in stocks %}
+                            <tr>
+                                <td><strong>{{ stock.ticker }}</strong></td>
+                                <td>{{ stock.company }}</td>
+                                <td>{{ stock.industry }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress-esg flex-grow-1" style="max-width: 100px;">
+                                            <div class="progress-bar bg-success" style="width: {{ stock.esg_score }}%;"></div>
+                                        </div>
+                                        <span class="small">{{ "%.1f"|format(stock.esg_score) }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('prediction', ticker=stock.ticker) }}" class="btn-outline-esg btn-sm" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">
+                                        Predict <i class="bi bi-arrow-right ms-1"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center py-4 mt-4">
+            <p class="text-muted small mb-0">
+                <i class="bi bi-cpu me-1"></i> ESG Stock Prediction System &copy; 2024
+                <span class="mx-2">|</span>
+                <i class="bi bi-shield-plus me-1"></i> AI-Powered Sustainable Investing
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+</html>

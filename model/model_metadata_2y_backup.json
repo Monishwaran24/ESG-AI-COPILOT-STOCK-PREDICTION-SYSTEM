@@ -1,0 +1,83 @@
+{
+  "model_type": "RandomForestClassifier",
+  "best_model_name": "Random Forest",
+  "accuracy": 0.767816742081448,
+  "precision": 0.7757229919820472,
+  "recall": 0.767816742081448,
+  "f1_score": 0.7686365531941323,
+  "cv_mean": 0.7558676478161374,
+  "cv_std": 0.009277864780238218,
+  "confusion_matrix": [
+    [
+      750,
+      240,
+      45
+    ],
+    [
+      127,
+      1137,
+      136
+    ],
+    [
+      27,
+      246,
+      828
+    ]
+  ],
+  "all_results": {
+    "Random Forest": {
+      "accuracy": 0.767816742081448,
+      "precision": 0.7757229919820472,
+      "recall": 0.767816742081448,
+      "f1_score": 0.7686365531941323,
+      "cv_mean": 0.7558676478161374,
+      "cv_std": 0.009277864780238218
+    },
+    "Gradient Boosting": {
+      "accuracy": 0.7019230769230769,
+      "precision": 0.7085932347635407,
+      "recall": 0.7019230769230769,
+      "f1_score": 0.7018435043449179,
+      "cv_mean": 0.6884191964113848,
+      "cv_std": 0.001796619259565108
+    },
+    "XGBoost": {
+      "accuracy": 0.6832579185520362,
+      "precision": 0.6903548613699586,
+      "recall": 0.6832579185520362,
+      "f1_score": 0.6830183342516496,
+      "cv_mean": 0.6734304433321684,
+      "cv_std": 0.006491687186276694
+    }
+  },
+  "feature_count": 21,
+  "features": [
+    "SMA_10",
+    "SMA_30",
+    "EMA_10",
+    "EMA_30",
+    "RSI_14",
+    "MACD",
+    "MACD_Signal",
+    "MACD_Histogram",
+    "BB_Width",
+    "BB_Position",
+    "Price_Change_1d",
+    "Price_Change_5d",
+    "Price_Change_20d",
+    "Volume_Ratio",
+    "High_Low_Ratio",
+    "Close_Open_Ratio",
+    "Volatility_10d",
+    "ESG_Score",
+    "Environmental_Score",
+    "Social_Score",
+    "Governance_Score"
+  ],
+  "training_date": "2026-07-16 20:02:44",
+  "label_classes": [
+    "Buy",
+    "Hold",
+    "Sell"
+  ]
+}

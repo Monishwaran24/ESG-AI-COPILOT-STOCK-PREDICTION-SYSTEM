@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ESG Stock Dashboard - View ESG scores and stock predictions">
+    <title>Dashboard - ESG Stock Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include 'sidebar.html' %}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="main-content">
+        <nav class="top-navbar">
+            <h1 class="page-title">
+                <i class="bi bi-grid-3x3-gap-fill"></i> ESG Dashboard
+            </h1>
+            <div class="top-navbar-right">
+                <div class="navbar-ticker-wrap">
+                    <div class="navbar-ticker-items" id="tickerItems"></div>
+                </div>
+                <div class="datetime-display">
+                    <i class="bi bi-clock me-1"></i>
+                    <span id="liveClock">Loading...</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="card mb-4 fade-in">
+            <div class="row g-0 align-items-center">
+                <div class="col-md-8 p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="bi bi-search fs-4 text-esg"></i>
+                        <div class="flex-grow-1 stock-search">
+                            <i class="bi bi-search search-icon"></i>
+                            <input type="text" id="stockSearch" class="form-control" placeholder="Search by ticker or company name..." autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 p-3 text-md-end text-center">
+                    <a href="{{ url_for('prediction') }}" class="btn-esg">
+                        <i class="bi bi-graph-up-arrow"></i> Predict Now
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-custom alert-esg-info mb-4 fade-in d-flex align-items-center gap-2">
+            <i class="bi bi-robot fs-4"></i>
+            <div>
+                <strong>Active Model:</strong> {{ model_info.name }}
+                <span class="mx-2">|</span>
+                <strong>Accuracy:</strong> {{ model_info.accuracy }}%
+                <span class="mx-2">|</span>
+                <strong>F1 Score:</strong> {{ model_info.f1_score }}%
+            </div>
+        </div>
+
+        <h4 class="mb-3"><i class="bi bi-pie-chart-fill text-esg me-2"></i> ESG Score Breakdown</h4>
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="esg-metric-card env text-center">
+                    <div class="esg-metric-icon mx-auto"><i class="bi bi-droplet"></i></div>
+                    <div class="esg-metric-value esg-display-env" style="color: var(--env-color);">--</div>
+                    <div class="esg-metric-label">Environmental Score</div>
+                    <small class="text-secondary esg-detail-env">Select a stock</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="esg-metric-card social text-center">
+                    <div class="esg-metric-icon mx-auto"><i class="bi bi-people-fill"></i></div>
+                    <div class="esg-metric-value esg-display-social" style="color: var(--social-color);">--</div>
+                    <div class="esg-metric-label">Social Score</div>
+                    <small class="text-secondary esg-detail-social">Select a stock</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="esg-metric-card gov text-center">
+                    <div class="esg-metric-icon mx-auto"><i class="bi bi-bank"></i></div>
+                    <div class="esg-metric-value esg-display-gov" style="color: var(--gov-color);">--</div>
+                    <div class="esg-metric-label">Governance Score</div>
+                    <small class="text-secondary esg-detail-gov">Select a stock</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-lg-5">
+                <div class="card h-100 fade-in">
+                    <div class="card-header">
+                        <span><i class="bi bi-radar"></i> ESG Radar</span>
+                        <span class="badge bg-success" id="radarStockLabel">Select a stock</span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="esgRadarChart" data-env="0" data-social="0" data-gov="0"></canvas>
+                        <p class="text-center text-secondary small mt-3 mb-0" id="radarHint">
+                            <i class="bi bi-info-circle me-1"></i> Click a stock below
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card h-100 fade-in">
+                    <div class="card-header">
+                        <span><i class="bi bi-building"></i> Available Stocks</span>
+                        <span class="badge bg-info">{{ stocks|length }} companies</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table-esg mb-0" id="stockTable">
+                                <thead>
+                                    <tr>
+                                        <th>Ticker</th>
+                                        <th>Company</th>
+                                        <th>Industry</th>
+                                        <th>ESG Score</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stock in stocks %}
+                                    <tr class="stock-item" data-ticker="{{ stock.ticker }}" data-company="{{ stock.company }}" data-esg="{{ stock.esg_score }}">
+                                        <td><strong>{{ stock.ticker }}</strong></td>
+                                        <td>{{ stock.company }}</td>
+                                        <td><span class="badge bg-secondary">{{ stock.industry[:15] }}{% if stock.industry|length > 15 %}...{% endif %}</span></td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="progress-esg flex-grow-1" style="max-width: 80px;">
+                                                    <div class="progress-bar bg-success" style="width: {{ stock.esg_score }}%;"></div>
+                                                </div>
+                                                <span class="small fw-bold">{{ "%.1f"|format(stock.esg_score) }}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('prediction', ticker=stock.ticker) }}" class="btn-outline-esg btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                                Analyze <i class="bi bi-arrow-right ms-1"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-5 fade-in">
+            <div class="card-header">
+                <span><i class="bi bi-bar-chart-steps"></i> ESG Score Comparison</span>
+            </div>
+            <div class="card-body">
+                <canvas id="esgDistributionChart"></canvas>
+            </div>
+        </div>
+
+        <div class="text-center py-4 mt-4">
+            <p class="text-muted small mb-0">
+                <i class="bi bi-cpu me-1"></i> ESG Stock Prediction System &copy; 2024
+                <span class="mx-2">|</span>
+                Data updates every 24 hours
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var allStocksData = [];
+
+        fetch('/api/stocks/detailed')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) return;
+                allStocksData = data;
+                renderDistributionChart(data);
+            })
+            .catch(function() {});
+
+        document.querySelectorAll('.stock-item').forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                if (e.target.closest('a')) return;
+                var ticker = this.getAttribute('data-ticker');
+
+                document.querySelectorAll('.stock-item').forEach(function(r) {
+                    r.style.background = '';
+                });
+                this.style.background = 'rgba(76, 175, 80, 0.1)';
+
+                var stock = allStocksData.find(function(s) { return s.ticker === ticker; });
+                if (stock) {
+                    updateESGDisplay(stock);
+                    updateRadarChart(stock);
+                } else {
+                    fetch('/api/stocks/detailed')
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.error) return;
+                            allStocksData = data;
+                            var s = data.find(function(x) { return x.ticker === ticker; });
+                            if (s) {
+                                updateESGDisplay(s);
+                                updateRadarChart(s);
+                            }
+                        });
+                }
+            });
+        });
+
+        function updateESGDisplay(stock) {
+            document.querySelector('.esg-display-env').textContent = stock.environmental_score.toFixed(1);
+            document.querySelector('.esg-display-social').textContent = stock.social_score.toFixed(1);
+            document.querySelector('.esg-display-gov').textContent = stock.governance_score.toFixed(1);
+            document.querySelector('.esg-detail-env').textContent = stock.company + ' | Risk: ' + stock.esg_risk;
+            document.querySelector('.esg-detail-social').textContent = stock.company + ' | Controversy: ' + stock.controversy;
+            document.querySelector('.esg-detail-gov').textContent = stock.company + ' | Industry: ' + stock.industry;
+        }
+
+        function updateRadarChart(stock) {
+            var canvas = document.getElementById('esgRadarChart');
+            if (!canvas) return;
+            canvas.setAttribute('data-env', stock.environmental_score);
+            canvas.setAttribute('data-social', stock.social_score);
+            canvas.setAttribute('data-gov', stock.governance_score);
+
+            document.getElementById('radarStockLabel').textContent = stock.ticker;
+            document.getElementById('radarHint').innerHTML = '<i class="bi bi-check-circle me-1"></i> ' + stock.company;
+
+            if (window._esgRadarChart) {
+                window._esgRadarChart.destroy();
+            }
+            var ctx = canvas.getContext('2d');
+            var env = stock.environmental_score;
+            var social = stock.social_score;
+            var gov = stock.governance_score;
+            var overall = (env + social + gov) / 3;
+
+            window._esgRadarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Environmental', 'Social', 'Governance', 'Overall ESG'],
+                    datasets: [{
+                        label: stock.ticker,
+                        data: [env, social, gov, overall],
+                        backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                        borderColor: 'rgba(76, 175, 80, 0.8)',
+                        borderWidth: 2,
+                        pointBackgroundColor: ['#2196F3','#FF9800','#9C27B0','#4CAF50'],
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(10,25,41,0.9)',
+                            titleColor: '#fff', bodyColor: '#90caf9',
+                            borderColor: 'rgba(76,175,80,0.3)', borderWidth: 1, padding: 12,
+                            callbacks: { label: function(ctx) { return ctx.parsed.r.toFixed(1) + '/100'; } }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            beginAtZero: true, max: 100,
+                            ticks: { stepSize: 20, color: '#64748b', backdropColor: 'transparent' },
+                            grid: { color: 'rgba(30,58,95,0.5)' },
+                            angleLines: { color: 'rgba(30,58,95,0.5)' },
+                            pointLabels: { color: '#90caf9', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderDistributionChart(data) {
+            var canvas = document.getElementById('esgDistributionChart');
+            if (!canvas || !data.length) return;
+            var ctx = canvas.getContext('2d');
+
+            var top20 = data.slice(0, 20);
+            var tickers = top20.map(function(d) { return d.ticker; });
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: tickers,
+                    datasets: [
+                        { label: 'Environmental', data: top20.map(function(d) { return d.environmental_score; }), backgroundColor: 'rgba(33,150,243,0.7)', borderColor: '#2196F3', borderWidth: 1, borderRadius: 2 },
+                        { label: 'Social', data: top20.map(function(d) { return d.social_score; }), backgroundColor: 'rgba(255,152,0,0.7)', borderColor: '#FF9800', borderWidth: 1, borderRadius: 2 },
+                        { label: 'Governance', data: top20.map(function(d) { return d.governance_score; }), backgroundColor: 'rgba(156,39,176,0.7)', borderColor: '#9C27B0', borderWidth: 1, borderRadius: 2 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: true,
+                    plugins: {
+                        legend: { labels: { color: '#90caf9', font: { size: 11 }, boxWidth: 12, padding: 15 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(10,25,41,0.9)', titleColor: '#fff', bodyColor: '#90caf9',
+                            borderColor: 'rgba(76,175,80,0.3)', borderWidth: 1, padding: 12,
+                            callbacks: {
+                                title: function(items) {
+                                    if (!items.length) return '';
+                                    var idx = items[0].dataIndex;
+                                    var s = top20[idx];
+                                    return s.ticker + ' - ' + s.company;
+                                },
+                                label: function(ctx) {
+                                    return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1);
+                                },
+                                afterBody: function(items) {
+                                    if (!items.length) return '';
+                                    var idx = items[0].dataIndex;
+                                    var s = top20[idx];
+                                    return 'ESG Risk: ' + s.esg_risk + ' | Controversy: ' + s.controversy;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(30,58,95,0.3)' }, ticks: { color: '#90caf9', font: { size: 10 } } },
+                        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(30,58,95,0.3)' }, ticks: { color: '#64748b', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+    });
+    </script>
+</body>
+</html>

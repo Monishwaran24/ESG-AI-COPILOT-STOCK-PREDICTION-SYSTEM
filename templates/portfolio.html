@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Virtual Portfolio - Track your virtual investments">
+    <title>Virtual Portfolio - ESG Stock Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include 'sidebar.html' %}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="main-content">
+        <nav class="top-navbar">
+            <h1 class="page-title">
+                <i class="bi bi-wallet2"></i> Virtual Portfolio
+            </h1>
+            <div class="top-navbar-right">
+                <div class="navbar-ticker-wrap">
+                    <div class="navbar-ticker-items" id="tickerItems"></div>
+                </div>
+                <div class="datetime-display">
+                    <i class="bi bi-clock me-1"></i>
+                    <span id="liveClock">Loading...</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="page-header">
+            <div class="header-left">
+                <p class="text-muted">Track your virtual investments and simulate trading strategies</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="showBuyModal()">
+                    <i class="bi bi-plus-lg"></i> Add Holding
+                </button>
+            </div>
+        </div>
+
+        <div class="row" id="portfolioStats">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary-soft">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalInvested">$0.00</h3>
+                        <p>Total Invested</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-success-soft">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="currentValue">$0.00</h3>
+                        <p>Current Value</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning-soft">
+                        <i class="bi bi-percent"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalReturn">+0.00%</h3>
+                        <p>Total Return</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="bi bi-briefcase-fill"></i> My Holdings</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="table" id="portfolioTable">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Shares</th>
+                                <th>Avg Buy Price</th>
+                                <th>Current Price</th>
+                                <th>Market Value</th>
+                                <th>P&L</th>
+                                <th>Return %</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="portfolioBody">
+                            {% for h in holdings %}
+                            <tr data-ticker="{{ h.ticker }}">
+                                <td><strong>{{ h.ticker }}</strong></td>
+                                <td>{{ h.shares }}</td>
+                                <td>${{ "%.2f"|format(h.buy_price) }}</td>
+                                <td class="current-price">--</td>
+                                <td class="market-value">--</td>
+                                <td class="pnl">--</td>
+                                <td class="return-pct">--</td>
+                                <td>
+                                    <button class="btn btn-sm btn-success" onclick="quickBuy('{{ h.ticker }}')"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-sm btn-danger" onclick="quickSell('{{ h.ticker }}')"><i class="bi bi-dash-lg"></i></button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="8" class="text-center text-muted py-4">No holdings yet. Click "Add Holding" to start trading!</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="bi bi-pie-chart-fill"></i> Portfolio Allocation</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="allocationChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="buyModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Holding</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="buyForm">
+                        <div class="form-group">
+                            <label>Ticker</label>
+                            <select class="form-control" id="buyTicker" required>
+                                {% for s in stocks %}
+                                <option value="{{ s.ticker }}">{{ s.ticker }} - {{ s.company }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Shares</label>
+                            <input type="number" class="form-control" id="buyShares" value="1" min="1" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Buy Price (leave 0 for live price)</label>
+                            <input type="number" class="form-control" id="buyPrice" value="0" min="0" step="0.01">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitBuy(this)">Buy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+    let portfolioCache = null;
+    let buyModal = null;
+
+    function showBuyModal() {
+        if (!buyModal) buyModal = new bootstrap.Modal(document.getElementById('buyModal'));
+        buyModal.show();
+    }
+
+    function submitBuy(btn) {
+        const ticker = document.getElementById('buyTicker').value;
+        const shares = parseFloat(document.getElementById('buyShares').value) || 1;
+        const price = parseFloat(document.getElementById('buyPrice').value) || 0;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Buying...';
+        fetch('/api/portfolio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ticker, shares, price, action:'buy'})
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.error) { showToast(data.error, 'error'); return; }
+            if (buyModal) buyModal.hide();
+            loadPortfolio();
+            showToast('Bought ' + shares + ' share(s) of ' + ticker, 'success');
+        }).catch(function() { showToast('Buy failed', 'error'); }).finally(function() {
+            btn.disabled = false;
+            btn.innerHTML = 'Buy';
+        });
+    }
+
+    function quickBuy(ticker) {
+        const shares = parseInt(prompt('Shares of ' + ticker + ' to buy:')) || 1;
+        fetch('/api/portfolio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ticker, shares, price:0, action:'buy'})
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.error) { showToast(data.error, 'error'); return; }
+            loadPortfolio();
+            showToast('Bought ' + shares + ' share(s) of ' + ticker, 'success');
+        }).catch(function() { showToast('Buy failed', 'error'); });
+    }
+
+    function quickSell(ticker) {
+        const shares = parseInt(prompt('Shares of ' + ticker + ' to sell:')) || 1;
+        fetch('/api/portfolio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ticker, shares, action:'sell'})
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.error) { showToast(data.error, 'error'); return; }
+            loadPortfolio();
+            showToast('Sold ' + shares + ' share(s) of ' + ticker, 'success');
+        }).catch(function() { showToast('Sell failed', 'error'); });
+    }
+
+    function loadPortfolio() {
+        fetch('/api/portfolio')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            portfolioCache = data;
+            const holdings = data.holdings;
+            const tbody = document.getElementById('portfolioBody');
+            tbody.innerHTML = '';
+            if (!holdings.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No holdings yet.</td></tr>';
+                updatePortfolioStats(0, 0, 0);
+                if (window.alloChart) { window.alloChart.destroy(); window.alloChart = null; }
+                return;
+            }
+            const tickerStr = holdings.map(function(h) { return h.ticker; }).join(',');
+            fetch('/api/ticker/prices?tickers=' + tickerStr)
+            .then(function(r) { return r.json(); })
+            .then(function(prices) {
+                let totalValue = 0;
+                let totalCost = 0;
+                holdings.forEach(function(h) {
+                    const p = prices[h.ticker];
+                    const currentPrice = p ? p.price : h.buy_price;
+                    const value = currentPrice * h.shares;
+                    const cost = h.buy_price * h.shares;
+                    const pnl = value - cost;
+                    const ret = cost > 0 ? ((pnl / cost) * 100) : 0;
+                    totalValue += value;
+                    totalCost += cost;
+                    tbody.innerHTML += '<tr data-ticker="' + h.ticker + '">' +
+                        '<td><strong>' + h.ticker + '</strong></td>' +
+                        '<td>' + h.shares + '</td>' +
+                        '<td>$' + h.buy_price.toFixed(2) + '</td>' +
+                        '<td>$' + currentPrice.toFixed(2) + '</td>' +
+                        '<td>$' + value.toFixed(2) + '</td>' +
+                        '<td class="' + (pnl >= 0 ? 'text-success' : 'text-danger') + '">' + (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2) + '</td>' +
+                        '<td class="' + (pnl >= 0 ? 'text-success' : 'text-danger') + '">' + (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%</td>' +
+                        '<td>' +
+                            '<button class="btn btn-sm btn-success" onclick="quickBuy(\'' + h.ticker + '\')"><i class="bi bi-plus-lg"></i></button> ' +
+                            '<button class="btn btn-sm btn-danger" onclick="quickSell(\'' + h.ticker + '\')"><i class="bi bi-dash-lg"></i></button>' +
+                        '</td></tr>';
+                });
+                updatePortfolioStats(totalCost, totalValue, totalValue - totalCost);
+                drawAllocationChart(holdings, prices);
+            })
+            .catch(function() {
+                showToast('Failed to load current prices', 'warning');
+                holdings.forEach(function(h) {
+                    const cost = h.buy_price * h.shares;
+                    tbody.innerHTML += '<tr data-ticker="' + h.ticker + '">' +
+                        '<td><strong>' + h.ticker + '</strong></td>' +
+                        '<td>' + h.shares + '</td>' +
+                        '<td>$' + h.buy_price.toFixed(2) + '</td>' +
+                        '<td class="text-muted">--</td>' +
+                        '<td class="text-muted">--</td>' +
+                        '<td class="text-muted">--</td>' +
+                        '<td class="text-muted">--</td>' +
+                        '<td>' +
+                            '<button class="btn btn-sm btn-success" onclick="quickBuy(\'' + h.ticker + '\')"><i class="bi bi-plus-lg"></i></button> ' +
+                            '<button class="btn btn-sm btn-danger" onclick="quickSell(\'' + h.ticker + '\')"><i class="bi bi-dash-lg"></i></button>' +
+                        '</td></tr>';
+                });
+                updatePortfolioStats(0, 0, 0);
+            });
+        })
+        .catch(function() {
+            showToast('Failed to load portfolio', 'error');
+        });
+    }
+
+    function updatePortfolioStats(cost, value, pnl) {
+        document.getElementById('totalInvested').textContent = '$' + cost.toFixed(2);
+        document.getElementById('currentValue').textContent = '$' + value.toFixed(2);
+        const ret = cost > 0 ? (pnl / cost) * 100 : 0;
+        const el = document.getElementById('totalReturn');
+        el.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%';
+        el.style.color = ret >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+
+    function drawAllocationChart(holdings, prices) {
+        const labels = holdings.map(function(h) { return h.ticker; });
+        const data = holdings.map(function(h) {
+            const p = prices[h.ticker];
+            return p ? p.price * h.shares : h.buy_price * h.shares;
+        });
+        const colors = ['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69',
+                        '#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107',
+                        '#198754','#20c997','#0dcaf0','#0d6efd','#6610f2','#6f42c1'];
+        const ctx = document.getElementById('allocationChart').getContext('2d');
+        if (window.alloChart) window.alloChart.destroy();
+        window.alloChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'right', labels: { padding: 15, color: 'var(--text-primary)' } }
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        buyModal = new bootstrap.Modal(document.getElementById('buyModal'));
+        loadPortfolio();
+    });
+    </script>
+</body>
+</html>

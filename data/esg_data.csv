@@ -1,0 +1,51 @@
+Ticker,Company,Industry,ESG_Score,Environmental_Score,Social_Score,Governance_Score,ESG_Risk_Rating,Controversy_Level
+AAPL,Apple Inc.,Technology,78.5,72.3,82.1,81.0,Low,Low
+MSFT,Microsoft Corporation,Technology,82.1,76.8,85.3,84.2,Low,Low
+GOOGL,Alphabet Inc.,Technology,74.2,68.5,78.9,75.2,Low,Medium
+AMZN,Amazon.com Inc.,Consumer Cyclical,62.8,55.4,68.2,64.8,Medium,High
+TSLA,Tesla Inc.,Automotive,58.6,65.2,52.4,58.2,Medium,Medium
+JPM,JPMorgan Chase & Co.,Financial,71.3,62.8,74.5,76.6,Low,Low
+V,Visa Inc.,Financial,73.5,64.2,76.8,79.5,Low,Low
+JNJ,Johnson & Johnson,Healthcare,76.8,68.5,80.2,81.7,Low,Low
+WMT,Walmart Inc.,Consumer Defensive,70.2,62.3,74.8,73.5,Low,Low
+PG,Procter & Gamble Co.,Consumer Defensive,72.5,65.8,75.2,76.5,Low,Low
+NVDA,NVIDIA Corporation,Technology,68.3,62.5,70.8,71.6,Low,Low
+DIS,The Walt Disney Company,Communication Services,67.5,58.2,72.3,72.0,Medium,Low
+NFLX,Netflix Inc.,Communication Services,64.2,55.8,68.5,68.3,Medium,Low
+ADBE,Adobe Inc.,Technology,75.8,70.2,78.5,78.7,Low,Low
+CRM,Salesforce Inc.,Technology,79.2,74.5,82.3,80.8,Low,Low
+INTC,Intel Corporation,Technology,65.8,58.5,68.2,70.7,Medium,Medium
+AMD,Advanced Micro Devices Inc.,Technology,62.3,55.2,65.8,65.9,Medium,Low
+PYPL,PayPal Holdings Inc.,Financial,72.5,63.8,75.2,78.5,Low,Low
+BA,Boeing Company,Industrials,52.8,45.2,56.5,56.7,High,High
+NKE,Nike Inc.,Consumer Cyclical,68.5,60.2,72.8,72.5,Low,Medium
+UNH,UnitedHealth Group Inc.,Healthcare,74.2,65.8,78.5,78.3,Low,Low
+HD,The Home Depot Inc.,Consumer Cyclical,69.8,61.5,73.2,74.7,Low,Low
+MRK,Merck & Co. Inc.,Healthcare,72.8,64.5,76.2,77.7,Low,Low
+PFE,Pfizer Inc.,Healthcare,70.5,62.8,74.5,74.2,Low,Medium
+KO,The Coca-Cola Company,Consumer Defensive,71.5,63.2,75.8,75.5,Low,Low
+PEP,PepsiCo Inc.,Consumer Defensive,72.8,65.5,76.2,76.7,Low,Low
+COST,Costco Wholesale Corp.,Consumer Defensive,73.5,66.8,77.2,76.5,Low,Low
+ABT,Abbott Laboratories,Healthcare,75.2,68.5,78.5,78.7,Low,Low
+ACN,Accenture plc,Technology,78.5,72.8,81.2,81.5,Low,Low
+LIN,Linde plc,Basic Materials,74.8,68.2,77.5,78.7,Low,Low
+TMO,Thermo Fisher Scientific Inc.,Healthcare,76.2,70.5,79.2,78.9,Low,Low
+AVGO,Broadcom Inc.,Technology,66.5,60.2,69.8,69.5,Medium,Low
+DHR,Danaher Corporation,Healthcare,74.5,67.8,78.2,77.5,Low,Low
+TXN,Texas Instruments Inc.,Technology,71.8,64.5,74.8,76.1,Low,Low
+QCOM,Qualcomm Inc.,Technology,67.5,60.8,70.2,71.5,Medium,Low
+ORCL,Oracle Corporation,Technology,63.5,56.2,66.8,67.5,Medium,Low
+UPS,United Parcel Service Inc.,Industrials,69.2,61.5,72.5,73.6,Low,Low
+AMAT,Applied Materials Inc.,Technology,66.8,60.5,69.2,70.7,Medium,Low
+IBM,International Business Machines,Technology,70.5,63.8,73.5,74.2,Low,Medium
+CSCO,Cisco Systems Inc.,Technology,72.5,65.2,75.8,76.5,Low,Low
+SBUX,Starbucks Corporation,Consumer Cyclical,68.2,60.5,72.5,71.6,Low,Medium
+MCD,McDonald's Corporation,Consumer Cyclical,65.5,56.8,68.5,71.2,Medium,Low
+CAT,Caterpillar Inc.,Industrials,62.8,54.5,66.2,67.7,Medium,Low
+GE,General Electric Company,Industrials,58.5,52.8,60.5,62.2,Medium,High
+INTU,Intuit Inc.,Technology,74.2,68.5,76.8,77.1,Low,Low
+AMGN,Amgen Inc.,Healthcare,71.8,64.5,74.8,76.1,Low,Low
+BKNG,Booking Holdings Inc.,Consumer Cyclical,63.5,55.2,67.8,67.5,Medium,Low
+SCHW,Charles Schwab Corporation,Financial,70.2,62.8,73.5,74.3,Low,Low
+VZ,Verizon Communications Inc.,Communication Services,68.5,60.2,72.5,72.8,Low,Low
+CMCSA,Comcast Corporation,Communication Services,62.5,54.8,65.2,67.5,Medium,Medium

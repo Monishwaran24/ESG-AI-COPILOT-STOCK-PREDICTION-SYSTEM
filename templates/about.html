@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="About - ESG Stock Prediction System">
+    <title>About - ESG Stock Prediction</title>
+
+    <!-- Bootstrap 5 + Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Sidebar -->
+    {% include 'sidebar.html' %}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <h1 class="page-title">
+                <i class="bi bi-info-circle-fill"></i> About
+            </h1>
+            <div class="top-navbar-right">
+                <div class="navbar-ticker-wrap">
+                    <div class="navbar-ticker-items" id="tickerItems"></div>
+                </div>
+                <div class="datetime-display">
+                    <i class="bi bi-clock me-1"></i>
+                    <span id="liveClock">Loading...</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero -->
+        <div class="hero-section text-center fade-in">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <i class="bi bi-graph-up-arrow" style="font-size: 4rem; color: var(--esg-accent);"></i>
+                    <h1 class="hero-title mt-3">
+                        ESG Stock Prediction<br>
+                        <span class="highlight">System</span>
+                    </h1>
+                    <p class="hero-subtitle mx-auto">
+                        An advanced machine learning platform that combines Environmental, Social, and Governance (ESG)
+                        scores with technical analysis to provide intelligent stock market predictions.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- What is this project -->
+        <div class="about-section fade-in">
+            <h4><i class="bi bi-question-circle me-2"></i> What is ESG Stock Prediction?</h4>
+            <p>
+                ESG Stock Prediction System is a comprehensive AI-powered platform that analyzes stocks based on
+                both technical indicators and ESG (Environmental, Social, and Governance) scores. By combining
+                traditional financial analysis with sustainability metrics, our system provides a holistic view
+                of a company's investment potential.
+            </p>
+            <p>
+                The system uses machine learning algorithms including Random Forest, Gradient Boosting, and XGBoost
+                to analyze thousands of data points and generate accurate Buy, Hold, or Sell recommendations.
+                Each prediction is accompanied by a confidence score, trend analysis, and risk assessment.
+            </p>
+        </div>
+
+        <!-- Key Features -->
+        <div class="about-section fade-in">
+            <h4><i class="bi bi-stars me-2"></i> Key Features</h4>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="bi bi-robot fs-3 text-esg mt-1"></i>
+                        <div>
+                            <h6 class="fw-bold">Machine Learning Models</h6>
+                            <p class="small text-secondary">Multiple ML models trained on historical data with automated model selection based on performance metrics.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="bi bi-flower1 fs-3 text-esg mt-1"></i>
+                        <div>
+                            <h6 class="fw-bold">ESG Integration</h6>
+                            <p class="small text-secondary">Environmental, Social, and Governance scores are factored into every prediction for sustainable investing.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="bi bi-graph-up fs-3 text-esg mt-1"></i>
+                        <div>
+                            <h6 class="fw-bold">Technical Analysis</h6>
+                            <p class="small text-secondary">Comprehensive technical indicators including SMA, EMA, RSI, MACD, and Bollinger Bands.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="bi bi-shield-check fs-3 text-esg mt-1"></i>
+                        <div>
+                            <h6 class="fw-bold">Risk Assessment</h6>
+                            <p class="small text-secondary">Each prediction includes a risk level (Low, Medium, High) combining market and ESG factors.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="bi bi-bar-chart fs-3 text-esg mt-1"></i>
+                        <div>
+                            <h6 class="fw-bold">Performance Metrics</h6>
+                            <p class="small text-secondary">Detailed model evaluation with accuracy, precision, recall, F1 score, and confusion matrices.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="bi bi-phone fs-3 text-esg mt-1"></i>
+                        <div>
+                            <h6 class="fw-bold">Responsive Design</h6>
+                            <p class="small text-secondary">Modern, mobile-friendly interface with interactive charts and real-time data visualization.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technology Stack -->
+        <div class="about-section fade-in">
+            <h4><i class="bi bi-cpu me-2"></i> Technology Stack</h4>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <h6 class="fw-bold text-esg mb-2">Frontend</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="tech-badge"><i class="bi bi-filetype-html"></i> HTML5</span>
+                        <span class="tech-badge"><i class="bi bi-filetype-css"></i> CSS3</span>
+                        <span class="tech-badge"><i class="bi bi-bootstrap"></i> Bootstrap 5</span>
+                        <span class="tech-badge"><i class="bi bi-filetype-js"></i> JavaScript</span>
+                        <span class="tech-badge"><i class="bi bi-bar-chart"></i> Chart.js</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="fw-bold text-esg mb-2">Backend</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="tech-badge"><i class="bi bi-python"></i> Python</span>
+                        <span class="tech-badge"><i class="bi bi-flask"></i> Flask</span>
+                        <span class="tech-badge"><i class="bi bi-database"></i> SQLite</span>
+                        <span class="tech-badge"><i class="bi bi-hdd"></i> Joblib</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="fw-bold text-esg mb-2">Machine Learning</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="tech-badge"><i class="bi bi-cpu"></i> Scikit-learn</span>
+                        <span class="tech-badge"><i class="bi bi-table"></i> Pandas</span>
+                        <span class="tech-badge"><i class="bi bi-calculator"></i> NumPy</span>
+                        <span class="tech-badge"><i class="bi bi-graph-up"></i> yfinance</span>
+                        <span class="tech-badge"><i class="bi bi-tree"></i> XGBoost</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works -->
+        <div class="about-section fade-in">
+            <h4><i class="bi bi-diagram-3 me-2"></i> How It Works</h4>
+            <div class="row g-4 mt-2">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="esg-metric-icon mx-auto" style="background: rgba(76, 175, 80, 0.15); color: #4caf50;">
+                            <i class="bi bi-1-circle"></i>
+                        </div>
+                        <h6 class="fw-bold mt-2">Data Collection</h6>
+                        <small class="text-secondary">Stock data from Yahoo Finance + ESG scores from curated datasets</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="esg-metric-icon mx-auto" style="background: rgba(33, 150, 243, 0.15); color: #2196F3;">
+                            <i class="bi bi-2-circle"></i>
+                        </div>
+                        <h6 class="fw-bold mt-2">Feature Engineering</h6>
+                        <small class="text-secondary">Technical indicators + ESG metrics combined into feature vectors</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="esg-metric-icon mx-auto" style="background: rgba(255, 152, 0, 0.15); color: #FF9800;">
+                            <i class="bi bi-3-circle"></i>
+                        </div>
+                        <h6 class="fw-bold mt-2">ML Training</h6>
+                        <small class="text-secondary">Multiple models trained, evaluated, and the best one is selected</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="esg-metric-icon mx-auto" style="background: rgba(156, 39, 176, 0.15); color: #9C27B0;">
+                            <i class="bi bi-4-circle"></i>
+                        </div>
+                        <h6 class="fw-bold mt-2">Prediction</h6>
+                        <small class="text-secondary">Real-time Buy/Hold/Sell recommendations with confidence scores</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="about-section fade-in" style="border-color: rgba(255, 152, 0, 0.2);">
+            <h4 class="text-warning"><i class="bi bi-exclamation-triangle me-2"></i> Disclaimer</h4>
+            <p class="mb-0">
+                This system is for <strong>educational and research purposes only</strong>. The predictions generated
+                by this system should not be considered as financial advice. Stock market investing involves risk,
+                and past performance does not guarantee future results. Always consult with a qualified financial
+                advisor before making investment decisions.
+            </p>
+        </div>
+
+        <!-- Project Info -->
+        <div class="about-section fade-in">
+            <h4><i class="bi bi-info-circle me-2"></i> Project Information</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table-esg">
+                        <tbody>
+                            <tr>
+                                <td class="text-secondary">Version</td>
+                                <td class="fw-bold">1.0.0</td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary">Framework</td>
+                                <td class="fw-bold">Flask + Bootstrap 5</td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary">ML Library</td>
+                                <td class="fw-bold">Scikit-learn</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table-esg">
+                        <tbody>
+                            <tr>
+                                <td class="text-secondary">Data Source</td>
+                                <td class="fw-bold">Yahoo Finance (yfinance)</td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary">License</td>
+                                <td class="fw-bold">MIT License</td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary">Purpose</td>
+                                <td class="fw-bold">Educational / Research</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center py-4 mt-4">
+            <p class="text-muted small mb-0">
+                <i class="bi bi-cpu me-1"></i> ESG Stock Prediction System &copy; 2024
+                <span class="mx-2">|</span>
+                Built with <i class="bi bi-heart-fill text-danger"></i> for Sustainable Investing
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+</html>

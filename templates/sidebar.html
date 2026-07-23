@@ -1,0 +1,120 @@
+<!-- ============================================================
+     ESG Stock Prediction System - Sidebar Navigation
+     ============================================================ -->
+<div id="particle-canvas"></div>
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <a href="/" class="sidebar-logo">
+            <i class="bi bi-graph-up-arrow"></i>
+            <span>ESG Predict</span>
+        </a>
+        <div class="sidebar-subtitle">AI-Powered Stock Analysis</div>
+    </div>
+
+    <div class="sidebar-nav">
+        <div class="nav-section">
+            <div class="nav-section-title">Main Navigation</div>
+
+            <a href="/" class="nav-item">
+                <i class="bi bi-house-fill"></i>
+                <span>Home</span>
+            </a>
+
+            <a href="/dashboard" class="nav-item">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="/predict" class="nav-item">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span>Prediction</span>
+            </a>
+
+            <a href="/performance" class="nav-item">
+                <i class="bi bi-bar-chart-fill"></i>
+                <span>Performance</span>
+                <span class="badge bg-success">ML</span>
+            </a>
+
+            <a href="/history" class="nav-item">
+                <i class="bi bi-clock-history"></i>
+                <span>History</span>
+                <span class="badge bg-info">DB</span>
+            </a>
+
+            <a href="/portfolio" class="nav-item">
+                <i class="bi bi-wallet2"></i>
+                <span>Portfolio</span>
+                <span class="badge bg-warning">New</span>
+            </a>
+
+            <a href="/about" class="nav-item">
+                <i class="bi bi-info-circle-fill"></i>
+                <span>About</span>
+            </a>
+        </div>
+
+        <div class="nav-section mt-3">
+            <div class="nav-section-title">Settings</div>
+
+            <a href="#" class="nav-item" id="themeToggle" onclick="toggleTheme(); return false;">
+                <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
+                <span id="themeLabel">Dark Mode</span>
+            </a>
+        </div>
+
+        <div class="nav-section mt-3">
+            <div class="nav-section-title">Quick Links</div>
+
+            <a href="/predict?ticker=AAPL" class="nav-item">
+                <i class="bi bi-apple"></i>
+                <span>AAPL</span>
+            </a>
+
+            <a href="/predict?ticker=MSFT" class="nav-item">
+                <i class="bi bi-windows"></i>
+                <span>MSFT</span>
+            </a>
+
+            <a href="/predict?ticker=GOOGL" class="nav-item">
+                <i class="bi bi-google"></i>
+                <span>GOOGL</span>
+            </a>
+
+            <a href="/predict?ticker=TSLA" class="nav-item">
+                <i class="bi bi-lightning-fill"></i>
+                <span>TSLA</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <p>
+            <i class="bi bi-shield-fill-check me-1"></i>
+            Version 1.0.0
+            <br>
+            <span class="small">Empowering Sustainable Investing</span>
+        </p>
+    </div>
+</nav>
+
+<button class="ai-chat-toggle" id="aiChatToggle" title="Ask AI Assistant">
+    <i class="bi bi-robot"></i>
+    <span class="pulse-dot"></span>
+</button>
+
+<div class="ai-chat-widget" id="aiChatWidget">
+    <div class="ai-chat-header">
+        <div class="header-title">
+            <i class="bi bi-robot"></i>
+            AI Investing Assistant
+        </div>
+        <button class="ai-chat-close" id="aiChatClose"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="ai-chat-messages" id="aiChatMessages"></div>
+    <div class="ai-chat-input-area">
+        <input type="text" id="aiChatInput" placeholder="Ask about a stock (e.g., AAPL)..." autocomplete="off">
+        <button class="ai-chat-send" id="aiChatSend"><i class="bi bi-send-fill"></i></button>
+    </div>
+</div>
