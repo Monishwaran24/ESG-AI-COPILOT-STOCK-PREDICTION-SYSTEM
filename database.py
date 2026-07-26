@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import json
-from datetime import datetime
 
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DB_DIR, 'esg_stock.db')
@@ -42,6 +41,7 @@ def init_db():
             model_accuracy REAL,
             ai_summary TEXT,
             is_simulated INTEGER DEFAULT 0,
+            market TEXT DEFAULT 'US',
             prediction_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             user_id INTEGER REFERENCES users(id)
         );
@@ -64,10 +64,45 @@ def init_db():
             UNIQUE(ticker, user_id)
         );
 
+        CREATE TABLE IF NOT EXISTS indian_historical_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker TEXT NOT NULL,
+            price_date DATE NOT NULL,
+            open_price REAL,
+            high_price REAL,
+            low_price REAL,
+            close_price REAL,
+            volume INTEGER,
+            UNIQUE(ticker, price_date)
+        );
+
+        CREATE TABLE IF NOT EXISTS indian_esg_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker TEXT UNIQUE NOT NULL,
+            esg_data TEXT,
+            cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_predictions_ticker ON predictions(ticker);
         CREATE INDEX IF NOT EXISTS idx_predictions_time ON predictions(prediction_time DESC);
         CREATE INDEX IF NOT EXISTS idx_predictions_recommendation ON predictions(recommendation);
+        CREATE INDEX IF NOT EXISTS idx_indian_historical_ticker ON indian_historical_data(ticker);
+        CREATE INDEX IF NOT EXISTS idx_indian_historical_date ON indian_historical_data(price_date);
     ''')
+
+    # Migration: add market column to existing predictions table
+    try:
+        cursor.execute("ALTER TABLE predictions ADD COLUMN market TEXT DEFAULT 'US'")
+        conn.commit()
+    except Exception:
+        pass  # Column already exists
+
+    # Create market index after potential migration (column may not exist yet in old DB)
+    try:
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_predictions_market ON predictions(market)")
+        conn.commit()
+    except Exception:
+        pass
 
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
@@ -75,7 +110,109 @@ def init_db():
                        ('default', 'Default User'))
 
     conn.commit()
+
+    # Migration: add market column to existing predictions table
+    try:
+        cursor.execute("ALTER TABLE predictions ADD COLUMN market TEXT DEFAULT 'US'")
+        conn.commit()
+    except Exception:
+        pass  # Column already exists    # Migration: add new columns/features tables
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS achievements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                achievement_key TEXT NOT NULL,
+                unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, achievement_key)
+            );
+        ''')
+    except Exception:
+        pass
+
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                api_key TEXT UNIQUE NOT NULL,
+                name TEXT DEFAULT 'Default',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used TIMESTAMP,
+                is_active INTEGER DEFAULT 1
+            );
+        ''')
+    except Exception:
+        pass
+
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS dividends (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT NOT NULL,
+                user_id INTEGER DEFAULT 1,
+                shares_at_record REAL DEFAULT 0,
+                dividend_per_share REAL DEFAULT 0,
+                total_amount REAL DEFAULT 0,
+                pay_date DATE,
+                recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
+    except Exception:
+        pass
+
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS market_activity (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
+                activity_type TEXT NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
+    except Exception:
+        pass
+
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1 UNIQUE,
+                theme TEXT DEFAULT 'dark',
+                language TEXT DEFAULT 'en',
+                notifications_enabled INTEGER DEFAULT 1,
+                email_alerts INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
+    except Exception:
+        pass
+
     conn.close()
+
+    # Migration for news_alerts table
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS news_alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT NOT NULL,
+                sentiment_label TEXT NOT NULL,
+                avg_polarity REAL,
+                article_count INTEGER DEFAULT 0,
+                alert_type TEXT DEFAULT 'strong_sentiment',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_id INTEGER DEFAULT 1 REFERENCES users(id),
+                is_read INTEGER DEFAULT 0,
+                UNIQUE(ticker, alert_type, date(created_at))
+            );
+        ''')
+        conn.commit()
+    except Exception:
+        pass
+
+    conn.close()
+
 
 def save_prediction(data):
     conn = get_connection()
@@ -88,13 +225,17 @@ def save_prediction(data):
     esg = data.get('esg_data', {})
     ai = data.get('ai_explanation', {})
 
+    market = data.get('market', 'US')
+    if market not in ('US', 'IN'):
+        market = 'US'
+
     cursor.execute('''
         INSERT INTO predictions (
             ticker, company, industry, recommendation, confidence,
             confidence_scores, current_price, price_change_pct,
             trend, risk_level, esg_score, model_used, model_accuracy,
-            ai_summary, is_simulated, user_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ai_summary, is_simulated, market, user_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data.get('ticker', '').upper(),
         data.get('company', ''),
@@ -111,6 +252,7 @@ def save_prediction(data):
         data.get('model_accuracy', 0.0),
         ai.get('summary', ''),
         1 if data.get('is_simulated') else 0,
+        market,
         1
     ))
 
@@ -299,3 +441,96 @@ def get_portfolio_summary():
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else {'count': 0, 'total_shares': 0, 'total_invested': 0}
+
+# NOTE: User authentication functions (create_client, get_client_by_email, etc.)
+# have been moved to users_db.py for security isolation.
+# Users are stored in a separate users.db database.
+def enable_watch_alert(ticker):
+    """Enable news sentiment alerts for a watched stock."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE watched_stocks SET alert_enabled = 1 WHERE ticker = ? AND user_id = 1",
+                       (ticker.upper(),))
+        conn.commit()
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+def disable_watch_alert(ticker):
+    """Disable news sentiment alerts for a watched stock."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE watched_stocks SET alert_enabled = 0 WHERE ticker = ? AND user_id = 1",
+                       (ticker.upper(),))
+        conn.commit()
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+def get_alerts_enabled_stocks():
+    """Get list of watched stocks with alerts enabled."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT ticker FROM watched_stocks WHERE alert_enabled = 1 AND user_id = 1")
+    rows = cursor.fetchall()
+    conn.close()
+    return [r['ticker'] for r in rows]
+
+def save_news_alert(ticker, sentiment_label, avg_polarity, article_count):
+    """Log a news sentiment alert to prevent duplicate notifications."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT OR IGNORE INTO news_alerts
+                (ticker, sentiment_label, avg_polarity, article_count, user_id)
+            VALUES (?, ?, ?, ?, 1)
+        ''', (ticker.upper(), sentiment_label, avg_polarity, article_count))
+        conn.commit()
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+def get_unread_alert_count():
+    """Get count of unread news alerts."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM news_alerts WHERE is_read = 0 AND user_id = 1")
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+def get_recent_alerts(limit=10):
+    """Get recent news alerts."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM news_alerts
+        WHERE user_id = 1
+        ORDER BY created_at DESC
+        LIMIT ?
+    ''', (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def mark_alerts_read():
+    """Mark all alerts as read."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE news_alerts SET is_read = 1 WHERE user_id = 1")
+    conn.commit()
+    conn.close()
+
+from users_db import (
+    create_client, get_client_by_email, get_client_by_id,
+    update_last_login, update_password, save_otp, verify_otp
+)

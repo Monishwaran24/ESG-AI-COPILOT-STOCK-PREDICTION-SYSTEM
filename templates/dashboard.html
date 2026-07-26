@@ -40,7 +40,7 @@
                         <i class="bi bi-search fs-4 text-esg"></i>
                         <div class="flex-grow-1 stock-search">
                             <i class="bi bi-search search-icon"></i>
-                            <input type="text" id="stockSearch" class="form-control" placeholder="Search by ticker or company name..." autocomplete="off">
+                            <input type="text" id="stockSearch" class="form-control" placeholder="Search by ticker or company name..." autocomplete="off" aria-label="Search stocks by ticker or company name">
                         </div>
                     </div>
                 </div>
@@ -103,6 +103,11 @@
                         <p class="text-center text-secondary small mt-3 mb-0" id="radarHint">
                             <i class="bi bi-info-circle me-1"></i> Click a stock below
                         </p>
+                        <div class="text-center mt-2" id="radarAction" style="display:none;">
+                            <button class="btn-esg btn-sm" id="viewPredictionBtn" style="padding:0.35rem 1rem;font-size:0.75rem;border:none;">
+                                <i class="bi bi-graph-up-arrow me-1"></i> View Prediction
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -153,6 +158,32 @@
             </div>
         </div>
 
+        <div id="dashboardPrediction" class="mb-5" style="display:none;">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h4 class="mb-0"><i class="bi bi-graph-up-arrow text-esg me-2"></i> AI Prediction</h4>
+                <button class="btn-outline-esg btn-sm" onclick="document.getElementById('dashboardPrediction').style.display='none';">
+                    <i class="bi bi-x-lg"></i> Close
+                </button>
+            </div>
+            <div id="dashboardPredictionResult"></div>
+            <!-- News Sentiment for Selected Stock -->
+            <div id="dashboardNews" style="display:none;"></div>
+        </div>
+
+        <!-- Watched Stocks News Section -->
+        <div class="card mb-5 fade-in" id="watchedNewsSection">
+            <div class="card-header">
+                <span><i class="bi bi-newspaper"></i> Latest News — Watched Stocks</span>
+                <span class="badge bg-info" id="watchedNewsCount">Loading...</span>
+            </div>
+            <div class="card-body" id="watchedNewsContainer">
+                <div class="text-center py-4 text-muted">
+                    <div class="spinner-border spinner-border-sm me-2 text-esg" role="status"></div>
+                    Loading news for your watched stocks...
+                </div>
+            </div>
+        </div>
+
         <div class="card mb-5 fade-in">
             <div class="card-header">
                 <span><i class="bi bi-bar-chart-steps"></i> ESG Score Comparison</span>
@@ -169,51 +200,268 @@
                 Data updates every 24 hours
             </p>
         </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
+        <!-- Dashboard inline scripts (MUST be inside main-content for SPA router to execute) -->
+        <script>
+    (function() {
         var allStocksData = [];
 
-        fetch('/api/stocks/detailed')
+        function fetchDetailedStocks(retries) {
+            retries = retries || 0;
+            if (retries > 3) return;
+            fetch('/api/stocks/detailed')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.error) {
+                        if (retries < 3) setTimeout(function() { fetchDetailedStocks(retries + 1); }, 1000);
+                        return;
+                    }
+                    allStocksData = data;
+                    renderDistributionChart(data);
+                })
+                .catch(function() {
+                    if (retries < 3) setTimeout(function() { fetchDetailedStocks(retries + 1); }, 1000);
+                });
+        }
+        fetchDetailedStocks();
+
+        function findStockAndUpdate(ticker) {
+            if (!ticker) return;
+            var stock = allStocksData.find(function(s) { return s.ticker === ticker; });
+            if (stock) {
+                showStockData(stock);
+            } else {
+                fetch('/api/stocks/detailed')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.error) return;
+                        allStocksData = data;
+                        var s = data.find(function(x) { return x.ticker === ticker; });
+                        if (s) showStockData(s);
+                    })
+                    .catch(function() {});
+            }
+        }
+
+        function showStockData(stock) {
+            updateESGDisplay(stock);
+            updateRadarChart(stock);
+            var header = document.querySelector('h4');
+            if (header) {
+                header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function fetchDashboardPrediction(ticker) {
+            var container = document.getElementById('dashboardPrediction');
+            var resultDiv = document.getElementById('dashboardPredictionResult');
+            if (!container || !resultDiv) return;
+            container.style.display = 'block';
+            resultDiv.innerHTML = '<div class="loading-spinner active"><div class="spinner"></div><p>Analyzing stock data with AI...</p></div>';
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: ticker })
+            })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data.error) return;
-                allStocksData = data;
-                renderDistributionChart(data);
-            })
-            .catch(function() {});
-
-        document.querySelectorAll('.stock-item').forEach(function(row) {
-            row.addEventListener('click', function(e) {
-                if (e.target.closest('a')) return;
-                var ticker = this.getAttribute('data-ticker');
-
-                document.querySelectorAll('.stock-item').forEach(function(r) {
-                    r.style.background = '';
-                });
-                this.style.background = 'rgba(76, 175, 80, 0.1)';
-
-                var stock = allStocksData.find(function(s) { return s.ticker === ticker; });
-                if (stock) {
-                    updateESGDisplay(stock);
-                    updateRadarChart(stock);
-                } else {
-                    fetch('/api/stocks/detailed')
-                        .then(function(r) { return r.json(); })
-                        .then(function(data) {
-                            if (data.error) return;
-                            allStocksData = data;
-                            var s = data.find(function(x) { return x.ticker === ticker; });
-                            if (s) {
-                                updateESGDisplay(s);
-                                updateRadarChart(s);
-                            }
-                        });
+                if (data.error) {
+                    resultDiv.innerHTML = '<div class="alert alert-custom alert-esg-danger">Error: ' + data.error + '</div>';
+                    return;
                 }
+                renderDashboardPrediction(data);
+                // Also fetch and display news for this ticker
+                fetchDashboardNews(ticker);
+            })
+            .catch(function(err) {
+                resultDiv.innerHTML = '<div class="alert alert-custom alert-esg-danger">Network error: ' + err.message + '</div>';
             });
+        }
+
+        function fetchDashboardNews(ticker) {
+            var newsDiv = document.getElementById('dashboardNews');
+            if (!newsDiv) return;
+            fetch('/api/news/' + ticker)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var ns = data.sentiment;
+                    if (typeof renderNewsSentimentCard === 'function' && ns && ns.article_count > 0) {
+                        var html = renderNewsSentimentCard(ns);
+                        if (html) {
+                            newsDiv.innerHTML = html;
+                            newsDiv.style.display = 'block';
+                            return;
+                        }
+                    }
+                    newsDiv.style.display = 'none';
+                })
+                .catch(function() {
+                    newsDiv.style.display = 'none';
+                });
+        }
+
+        function renderDashboardPrediction(result) {
+            var container = document.getElementById('dashboardPredictionResult');
+            if (!container) return;
+            var isPositive = result.price_change_pct >= 0;
+            var rec = result.recommendation || 'N/A';
+            var recLower = rec.toLowerCase();
+            var confidence = result.confidence || 0;
+            var confColor = confidence >= 80 ? '#4caf50' : confidence >= 60 ? '#ff9800' : '#f44336';
+            var confIcon = rec === 'Buy' ? 'check-circle' : rec === 'Sell' ? 'x-circle' : 'dash-circle';
+            var trendIcon = result.trend === 'Bullish' ? 'arrow-up' : result.trend === 'Bearish' ? 'arrow-down' : 'minus';
+            var esg = result.esg_data || {};
+            var ind = result.indicators || {};
+            var riskClass = (result.risk_level || 'medium').toLowerCase();
+            var ticker = result.ticker;
+
+            var html = '<div class="fade-in">';
+
+            // Row 1: Stock price + Recommendation + Trend + ESG quick view
+            html += '<div class="row g-3 mb-3">';
+            html += '<div class="col-md-3"><div class="stock-price-card mb-0" style="padding:0.75rem;"><div class="stock-ticker" style="font-size:1.1rem;">' + ticker + '</div><div class="stock-company" style="font-size:0.75rem;">' + (result.company||'') + '</div><div class="stock-price" style="font-size:1.3rem;"><span class="currency">' + (result.currency_symbol||'$') + '</span>' + (result.current_price||0).toFixed(2) + '</div><div class="stock-change ' + (isPositive ? 'positive' : 'negative') + '" style="font-size:0.8rem;"><i class="bi bi-' + (isPositive ? 'arrow-up' : 'arrow-down') + '"></i> ' + (result.price_change_pct||0).toFixed(2) + '%</div></div></div>';
+            html += '<div class="col-md-3 text-center"><div class="recommendation-badge ' + recLower + ' mb-2" style="font-size:1rem;display:inline-block;">' + rec + '</div><div><span class="fw-bold" style="color:' + confColor + ';font-size:1.5rem;">' + confidence.toFixed(0) + '%</span><br><small class="text-secondary">Confidence</small></div></div>';
+            html += '<div class="col-md-3"><small class="text-secondary d-block mb-1"><i class="bi bi-trending-up me-1"></i> Trend</small><span class="trend-badge ' + (result.trend||'neutral').toLowerCase() + '">' + (result.trend||'N/A') + '</span><br><small class="text-secondary d-block mt-2 mb-1"><i class="bi bi-shield-exclamation me-1"></i> Risk</small><span class="risk-badge ' + riskClass + '">' + (result.risk_level||'N/A') + '</span></div>';
+            html += '<div class="col-md-3"><div class="d-flex justify-content-between mb-1"><span class="text-secondary small">RSI</span><span class="fw-bold small">' + (ind.rsi||'--') + '</span></div><div class="d-flex justify-content-between mb-1"><span class="text-secondary small">ESG</span><span class="fw-bold small text-esg">' + (esg.esg_score||0).toFixed(1) + '</span></div><div class="d-flex justify-content-between"><span class="text-secondary small">Model</span><span class="fw-bold small text-esg">' + (result.model_used||'AI') + '</span></div></div>';
+            html += '</div>';
+
+            // Row 2: ESG Score Breakdown
+            html += '<div class="row g-3 mb-3">';
+            html += '<div class="col-4"><div class="esg-metric-card env text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-droplet"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--env-color);">' + (esg.environmental_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Environmental</div></div></div>';
+            html += '<div class="col-4"><div class="esg-metric-card social text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-people-fill"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--social-color);">' + (esg.social_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Social</div></div></div>';
+            html += '<div class="col-4"><div class="esg-metric-card gov text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-bank"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--gov-color);">' + (esg.governance_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Governance</div></div></div>';
+            html += '</div>';
+
+            // Row 3: Technical Indicators + Confidence Breakdown
+            html += '<div class="row g-3 mb-3">';
+            html += '<div class="col-md-6"><div class="row g-2"><div class="col-6"><div class="metric-item p-2"><div class="metric-value" style="font-size:1rem;">' + (ind.rsi||'--') + '</div><div class="metric-label" style="font-size:0.6rem;">RSI (14)</div></div></div><div class="col-6"><div class="metric-item p-2"><div class="metric-value" style="font-size:1rem;">' + ((ind.macd||0).toFixed(4)) + '</div><div class="metric-label" style="font-size:0.6rem;">MACD</div></div></div><div class="col-6"><div class="metric-item p-2"><div class="metric-value" style="font-size:1rem;">' + (result.currency_symbol||'$') + ((ind.sma_10||0).toFixed(2)) + '</div><div class="metric-label" style="font-size:0.6rem;">SMA (10)</div></div></div><div class="col-6"><div class="metric-item p-2"><div class="metric-value" style="font-size:1rem;">' + (result.currency_symbol||'$') + ((ind.sma_30||0).toFixed(2)) + '</div><div class="metric-label" style="font-size:0.6rem;">SMA (30)</div></div></div></div></div>';
+            // Confidence breakdown
+            var cfb = '';
+            if (result.confidence_scores) {
+                cfb = '<div class="row g-1">';
+                ['Buy','Hold','Sell'].forEach(function(a) {
+                    var s = result.confidence_scores[a] || 0;
+                    var c = a === 'Buy' ? '#4caf50' : a === 'Hold' ? '#ff9800' : '#f44336';
+                    cfb += '<div class="col-4"><div class="text-center p-1" style="background:rgba(0,0,0,0.15);border-radius:8px;"><div class="recommendation-badge ' + a.toLowerCase() + ' mb-1" style="font-size:0.6rem;padding:0.15rem 0.5rem;display:inline-block;">' + a + '</div><div class="fw-bold" style="color:' + c + ';font-size:1rem;">' + s.toFixed(1) + '%</div><div class="progress-esg" style="height:4px;"><div class="progress-bar" style="width:' + s + '%;background:' + c + ';"></div></div></div></div>';
+                });
+                cfb += '</div>';
+            }
+            html += '<div class="col-md-6">' + (cfb || '<p class="text-muted small">Confidence data unavailable</p>') + '</div>';
+            html += '</div>';
+
+            // Row 4: XAI Explainable AI Section with toggle
+            html += '<div class="card mb-3" id="dashXaiCard" style="display:none;">';
+            html += '<div class="card-header py-2">';
+            html += '<span><i class="bi bi-lightbulb-fill text-warning me-2"></i>Explainable AI <span class="badge bg-info ms-1" style="font-size:0.6rem;">XAI</span></span>';
+            html += '<div class="d-flex align-items-center gap-2"><div class="xai-method-toggle btn-group btn-group-sm">';
+            html += '<button type="button" class="xai-toggle-btn active" data-method="auto" title="Auto"><i class="bi bi-robot"></i> Auto</button>';
+            html += '<button type="button" class="xai-toggle-btn" data-method="shap" title="SHAP"><i class="bi bi-graph-up"></i> SHAP</button>';
+            html += '<button type="button" class="xai-toggle-btn" data-method="lime" title="LIME"><i class="bi bi-bar-chart-steps"></i> LIME</button>';
+            html += '</div><small class="text-muted" id="dashXaiMethod"></small></div>';
+            html += '</div>';
+            html += '<div class="card-body py-2"><div id="dashXaiSummary" class="mb-2 text-secondary small"></div><div id="dashXaiContributions"></div><div class="text-center mt-2"><small class="text-muted" id="dashXaiPriceImpact"></small></div></div>';
+            html += '</div>';
+
+            // Link to full analysis page
+            html += '<div class="text-end mt-2"><a href="/predict?ticker=' + ticker + '" class="btn-outline-esg btn-sm">View Full Analysis <i class="bi bi-arrow-right ms-1"></i></a></div>';
+            html += '</div>';
+
+            container.innerHTML = html;
+
+            // Fetch XAI explanation for this ticker
+            if (ticker) {
+                renderDashboardXAI(ticker);
+            }
+        }
+
+        function renderDashboardXAI(ticker) {
+            if (!ticker) return;
+            var card = document.getElementById('dashXaiCard');
+            if (!card) return;
+            var method = 'auto';
+            var activeBtn = document.querySelector('.xai-toggle-btn.active');
+            if (activeBtn) method = activeBtn.getAttribute('data-method') || 'auto';
+            
+            card.style.display = 'block';
+            card.style.opacity = '0.5';
+            var contribDiv = document.getElementById('dashXaiContributions');
+            var summaryDiv = document.getElementById('dashXaiSummary');
+            var methodEl = document.getElementById('dashXaiMethod');
+            var impactEl = document.getElementById('dashXaiPriceImpact');
+            if (contribDiv) contribDiv.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm text-esg" role="status"></div> Computing explanations...</div>';
+            if (summaryDiv) summaryDiv.textContent = '';
+            if (methodEl) methodEl.textContent = '';
+            if (impactEl) impactEl.textContent = '';
+
+            fetch('/api/xai/' + ticker + '?method=' + method)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.error) { card.style.display = 'none'; return; }
+                    card.style.opacity = '1';
+                    if (methodEl) methodEl.textContent = data.method || '';
+                    if (summaryDiv) summaryDiv.innerHTML = data.summary || '';
+                    if (impactEl && data.price_impact !== undefined) {
+                        var sign = data.price_impact >= 0 ? '+' : '';
+                        var color = data.price_impact >= 0 ? '#4caf50' : '#f44336';
+                        impactEl.innerHTML = 'Estimated Price Impact: <span style="color:' + color + ';font-weight:bold;font-size:1rem;">' + sign + data.price_impact + '%</span>';
+                    }
+                    if (!contribDiv) return;
+                    var contribs = data.contributions || [];
+                    if (contribs.length === 0) {
+                        contribDiv.innerHTML = '<p class="text-muted text-center">No factor breakdown</p>';
+                        return;
+                    }
+                    var maxImpact = Math.max.apply(null, contribs.map(function(c) { return c.impact; }));
+                    var h = '<div class="xai-contrib-list">';
+                    contribs.forEach(function(c) {
+                        var barWidth = (c.impact / maxImpact) * 100;
+                        var barColor = c.direction === 'positive' ? '#4caf50' : '#f44336';
+                        var iconMap = {'leaf':'bi bi-flower1','trending-up':'bi bi-graph-up-arrow','bar-chart':'bi bi-bar-chart-fill','activity':'bi bi-activity','dollar-sign':'bi bi-currency-dollar','help-circle':'bi bi-question-circle'};
+                        var icon = iconMap[c.icon] || 'bi bi-dot';
+                        var s = c.direction === 'positive' ? '+' : '-';
+                        h += '<div class="xai-contrib-item mb-2">';
+                        h += '<div class="d-flex align-items-center justify-content-between mb-1">';
+                        h += '<span class="small fw-bold"><i class="' + icon + ' me-2 text-esg"></i>' + c.factor + '</span>';
+                        h += '<span class="fw-bold" style="color:' + barColor + ';">' + s + c.impact.toFixed(1) + '%</span>';
+                        h += '</div>';
+                        h += '<div class="xai-bar-track" style="height:5px;"><div class="xai-bar-fill" style="width:' + barWidth + '%;height:100%;background:' + barColor + ';border-radius:3px;transition:width 0.8s ease;"></div></div>';
+                        h += '<small class="text-muted">' + c.description + '</small>';
+                        h += '</div>';
+                    });
+                    h += '</div>';
+                    contribDiv.innerHTML = h;
+                })
+                .catch(function() { card.style.display = 'none'; });
+        }
+
+        // Use event delegation for stock table clicks (with stopPropagation for robustness)
+        document.getElementById('stockTable').addEventListener('click', function(e) {
+            var row = e.target.closest('.stock-item');
+            if (!row) return;
+
+            var analyzeLink = e.target.closest('a');
+            if (analyzeLink) {
+                e.preventDefault();
+                e.stopPropagation();
+                var ticker = row.getAttribute('data-ticker');
+                if (!ticker) return;
+                // Update ESG scores & radar chart
+                findStockAndUpdate(ticker);
+                // Show AI prediction inline
+                fetchDashboardPrediction(ticker);
+                return;
+            }
+
+            var ticker = row.getAttribute('data-ticker');
+            if (!ticker) return;
+
+            document.querySelectorAll('.stock-item').forEach(function(r) {
+                r.style.background = '';
+            });
+            row.style.background = 'rgba(76, 175, 80, 0.1)';
+
+            findStockAndUpdate(ticker);
         });
 
         function updateESGDisplay(stock) {
@@ -234,6 +482,14 @@
 
             document.getElementById('radarStockLabel').textContent = stock.ticker;
             document.getElementById('radarHint').innerHTML = '<i class="bi bi-check-circle me-1"></i> ' + stock.company;
+
+            // Show and update the 'View Prediction' button
+            var actionDiv = document.getElementById('radarAction');
+            var predBtn = document.getElementById('viewPredictionBtn');
+            if (actionDiv) actionDiv.style.display = 'block';
+            if (predBtn) {
+                predBtn.onclick = function() { fetchDashboardPrediction(stock.ticker); };
+            }
 
             if (window._esgRadarChart) {
                 window._esgRadarChart.destroy();
@@ -336,7 +592,201 @@
                 }
             });
         }
-    });
+
+        // Load news for watched stocks on page load
+        function loadWatchedStocksNews() {
+            if (typeof fetch === 'undefined') return;  // Safety check
+            fetch('/api/watchlist')
+                .then(function(r) { return r.json(); })
+                .then(function(watched) {
+                    var section = document.getElementById('watchedNewsSection');
+                    var container = document.getElementById('watchedNewsContainer');
+                    var countBadge = document.getElementById('watchedNewsCount');
+                    if (!container) return;
+
+                    if (!watched || watched.length === 0) {
+                        container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-star me-2"></i>No watched stocks yet. <a href="/predict" class="text-esg">Start watching stocks</a> from the Prediction page.</div>';
+                        if (countBadge) countBadge.textContent = '0';
+                        return;
+                    }
+
+                    if (countBadge) countBadge.textContent = watched.length;
+                    container.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2 text-esg" role="status"></div>Loading news...</div>';
+
+                    // Track which stocks have alerts enabled
+                    var alertStatus = {};
+                    watched.forEach(function(w) { alertStatus[w.ticker] = w.alert_enabled; });
+
+                    // Fetch news for up to 5 watched stocks in parallel
+                    var tickers = watched.slice(0, 5).map(function(w) { return w.ticker; });
+                    var promises = tickers.map(function(t) {
+                        return fetch('/api/news/' + t)
+                            .then(function(r) { return r.json(); })
+                            .then(function(d) { return { ticker: t, data: d }; })
+                            .catch(function() { return { ticker: t, data: null }; });
+                    });
+
+                    Promise.all(promises)
+                        .then(function(results) {
+                            var anyNews = false;
+                            var html = '';
+                            results.forEach(function(r) {
+                                var ns = r.data && r.data.sentiment;
+                                if (!ns || !ns.article_count || ns.article_count === 0) {
+                                    // No news for this stock - skip
+                                    return;
+                                }
+                                anyNews = true;
+                                // Build a mini news card for each watched stock
+                                var label = ns.sentiment_label || 'Neutral';
+                                var labelLower = label.toLowerCase();
+                                var labelIcon = label === 'Positive' ? 'emoji-sunglasses' : label === 'Negative' ? 'emoji-frown' : 'emoji-neutral';
+                                var breakdown = ns.sentiment_breakdown || {positive: 0, neutral: 0, negative: 0};
+                                var avgPol = ns.avg_polarity || 0;
+                                var avgColor = avgPol > 0.1 ? '#4caf50' : avgPol < -0.1 ? '#f44336' : '#ffc107';
+
+                                html += '<div class="watched-news-card mb-3 fade-in">';
+                                html += '<div class="d-flex align-items-center justify-content-between mb-2">';
+                                html += '<a href="/predict?ticker=' + r.ticker + '" class="fw-bold text-esg" style="font-size:1.1rem;">' + r.ticker + '</a>';
+                                html += '<div class="d-flex align-items-center gap-2">';
+                                var isAlertOn = alertStatus[r.ticker];
+                                html += '<button class="alert-toggle-btn' + (isAlertOn ? ' alert-on' : '') + '" data-ticker="' + r.ticker + '" title="' + (isAlertOn ? 'Alerts enabled' : 'Enable alerts') + '" aria-label="Toggle alerts for ' + r.ticker + '">' +
+                                    '<i class="bi bi-' + (isAlertOn ? 'bell-fill' : 'bell-slash') + '"' + (isAlertOn ? ' style="font-size:0.85rem;color:#ffc107;"' : ' style="font-size:0.85rem;"') + '></i>' +
+                                    '</button>';
+                                html += '<span class="sentiment-summary-badge ' + labelLower + '"><i class="bi bi-' + labelIcon + '"></i> ' + label + '</span>';
+                                html += '</div></div>';
+                                html += '<div class="d-flex align-items-center gap-3 mb-2">';
+                                html += '<small class="text-muted"><span class="text-success fw-bold">' + (breakdown.positive || 0) + '</span> pos / <span class="text-warning fw-bold">' + (breakdown.neutral || 0) + '</span> neut / <span class="text-danger fw-bold">' + (breakdown.negative || 0) + '</span> neg</small>';
+                                html += '<small class="text-muted">Polarity: <span style="color:' + avgColor + ';font-weight:bold;">' + avgPol.toFixed(3) + '</span></small>';
+                                html += '</div>';
+
+                                // Show headlines
+                                var headlines = ns.headlines || [];
+                                html += '<div class="watched-news-headlines">';
+                                var maxShow = Math.min(headlines.length, 3);
+                                for (var i = 0; i < maxShow; i++) {
+                                    var hl = headlines[i];
+                                    var s = hl.sentiment || 'neutral';
+                                    var sIcon = s === 'positive' ? 'hand-thumbs-up-fill' : s === 'negative' ? 'hand-thumbs-down-fill' : 'dash-circle-fill';
+                                    var url = hl.url || '';
+                                    if (url) {
+                                        html += '<a href="' + url + '" target="_blank" rel="noopener" class="news-headline-item ' + s + '" style="padding:0.35rem 0.6rem;margin-bottom:2px;">';
+                                    } else {
+                                        html += '<div class="news-headline-item ' + s + '" style="padding:0.35rem 0.6rem;margin-bottom:2px;">';
+                                    }
+                                    html += '<span class="news-sentiment-dot ' + s + '" style="width:20px;height:20px;font-size:0.6rem;"><i class="bi bi-' + sIcon + '"></i></span>';
+                                    html += '<span class="news-headline-text"><span class="news-headline-title" style="font-size:0.78rem;">' + escapeHtml(hl.title || '') + '</span></span>';
+                                    html += url ? '</a>' : '</div>';
+                                }
+                                html += '</div>';
+                                html += '<div class="mt-2"><a href="/predict?ticker=' + r.ticker + '" class="btn-outline-esg btn-sm" style="padding:0.2rem 0.6rem;font-size:0.65rem;">Full Analysis <i class="bi bi-arrow-right ms-1"></i></a></div>';
+                                html += '</div>';
+                            });
+
+                            if (!anyNews) {
+                                html = '<div class="text-center py-4 text-muted"><i class="bi bi-newspaper me-2"></i>No recent news found for your watched stocks.</div>';
+                            }
+                            container.innerHTML = html;
+                        })
+                        .catch(function() {
+                            container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-2"></i>Could not load news. Try again later.</div>';
+                        });
+                })
+                .catch(function() {
+                    var container = document.getElementById('watchedNewsContainer');
+                    if (container) {
+                        container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-2"></i>Could not load watched stocks.</div>';
+                    }
+                });
+        }
+
+        // Wire up alert toggle buttons (event delegation)
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.alert-toggle-btn');
+            if (!btn) return;
+            var ticker = btn.getAttribute('data-ticker');
+            if (!ticker) return;
+            var isEnabled = btn.classList.contains('alert-on');
+            var icon = btn.querySelector('i');
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            fetch('/api/watchlist/alert', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ticker: ticker, enabled: !isEnabled})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.status === 'alert_enabled') {
+                    btn.classList.add('alert-on');
+                    if (icon) {
+                        icon.className = 'bi bi-bell-fill';
+                        icon.style.color = '#ffc107';
+                    }
+                    btn.title = 'Alerts enabled';
+                    showToast('News alerts enabled for ' + ticker, 'success');
+                } else {
+                    btn.classList.remove('alert-on');
+                    if (icon) {
+                        icon.className = 'bi bi-bell-slash';
+                        icon.style.color = '';
+                    }
+                    btn.title = 'Enable news alerts';
+                    showToast('News alerts disabled for ' + ticker, 'info');
+                }
+            })
+            .catch(function() {
+                showToast('Failed to toggle alert', 'error');
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.style.opacity = '';
+            });
+        });
+
+        // Load watched stocks news on page load (deferred to let main.js load first)
+        setTimeout(function() {
+            if (typeof renderNewsSentimentCard === 'function') {
+                loadWatchedStocksNews();
+            } else {
+                // main.js not loaded yet, try again after a short delay
+                setTimeout(loadWatchedStocksNews, 500);
+            }
+        }, 300);
+
+        // Dashboard-specific XAI toggle handler (separate from main.js prediction page handler)
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.xai-toggle-btn');
+            if (!btn) return;
+            var dashCard = btn.closest('#dashXaiCard');
+            if (!dashCard) return;
+            e.stopPropagation();
+            e.preventDefault();
+
+            var toggleGroup = btn.closest('.xai-method-toggle');
+            if (!toggleGroup) return;
+            var method = btn.getAttribute('data-method');
+            if (!method) return;
+
+            toggleGroup.querySelectorAll('.xai-toggle-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+
+            var ticker = null;
+            var te = document.querySelector('.stock-ticker');
+            if (te) ticker = te.textContent.trim();
+            if (!ticker) {
+                var ts = document.getElementById('tickerSelect');
+                if (ts) ticker = ts.value;
+            }
+            if (ticker) renderDashboardXAI(ticker);
+        });
+    })();
     </script>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js')}}?v={{ static_version() }}"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -39,7 +40,7 @@
                 <form id="predictionForm" method="POST" action="{{ url_for('prediction') }}">
                     <div class="row g-3 align-items-end">
                         <div class="col-md-6">
-                            <label class="form-label text-secondary small fw-bold text-uppercase">
+                            <label for="tickerSelect" class="form-label text-secondary small fw-bold text-uppercase">
                                 <i class="bi bi-search me-1"></i> Select Stock
                             </label>
                             <select name="ticker" id="tickerSelect" class="stock-select">
@@ -53,12 +54,12 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label text-secondary small fw-bold text-uppercase">
+                            <label for="ticker_text" class="form-label text-secondary small fw-bold text-uppercase">
                                 <i class="bi bi-keyboard me-1"></i> Or Enter Ticker
                             </label>
                             <div class="stock-search">
                                 <i class="bi bi-search search-icon"></i>
-                                <input type="text" name="ticker_text" class="form-control"
+                                <input type="text" name="ticker_text" id="ticker_text" class="form-control"
                                     placeholder="e.g., AAPL, Microsoft, Apple..."
                                     value="{{ selected_ticker if selected_ticker else '' }}"
                                     style="padding-left: 2.75rem;">
@@ -84,7 +85,7 @@
                   <div class="stock-price-card">
                     <div class="stock-ticker">{{ result.ticker }}</div>
                     <div class="stock-company">{{ result.company }}</div>
-                    <div class="stock-price"><span class="currency">$</span>{{ "%.2f"|format(result.current_price) }}</div>
+                    <div class="stock-price"><span class="currency">{{ result.currency_symbol }}</span>{{ "%.2f"|format(result.current_price) }}</div>
                     <div class="stock-change {{ 'positive' if result.price_change_pct >= 0 else 'negative' }}">
                       <i class="bi bi-{{ 'arrow-up' if result.price_change_pct >= 0 else 'arrow-down' }}"></i> {{ "%.2f"|format(result.price_change_pct) }}%
                     </div>
@@ -131,8 +132,8 @@
                         <span class="text-secondary"><i class="bi bi-robot me-1"></i> AI Engine</span>
                         <span class="text-esg small fw-bold">{{ result.model_used or 'Ensemble AI' }}</span>
                       </div>
-                      {% if result.is_simulated %}
-                      <div class="alert alert-custom alert-esg-warning mt-3 mb-0 py-2 small"><i class="bi bi-info-circle me-1"></i> Demo prediction</div>
+                      {% if result.ml_unavailable %}
+                      <div class="alert alert-custom alert-esg-warning mt-3 mb-0 py-2 small"><i class="bi bi-exclamation-triangle me-1"></i> <strong>ML model unavailable</strong> &mdash; showing real-time market data only</div>
                       {% endif %}
                     </div>
                   </div>
@@ -147,8 +148,8 @@
                       <div class="row g-3">
                         <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">{{ result.indicators.rsi }}</div><div class="metric-label">RSI (14)</div></div></div>
                         <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">{{ "%.4f"|format(result.indicators.macd) }}</div><div class="metric-label">MACD</div></div></div>
-                        <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${{ "%.2f"|format(result.indicators.sma_10) }}</div><div class="metric-label">SMA (10)</div></div></div>
-                        <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${{ "%.2f"|format(result.indicators.sma_30) }}</div><div class="metric-label">SMA (30)</div></div></div>
+                        <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">{{ result.currency_symbol }}{{ "%.2f"|format(result.indicators.sma_10) }}</div><div class="metric-label">SMA (10)</div></div></div>
+                        <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">{{ result.currency_symbol }}{{ "%.2f"|format(result.indicators.sma_30) }}</div><div class="metric-label">SMA (30)</div></div></div>
                         <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">{{ result.indicators.volume_ratio }}x</div><div class="metric-label">Volume Ratio</div></div></div>
                         <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">{{ result.indicators.volatility }}%</div><div class="metric-label">Volatility</div></div></div>
                       </div>
@@ -178,14 +179,28 @@
 
               <div class="card mb-4 fade-in">
                 <div class="card-header">
-                  <span><i class="bi bi-graph-up"></i> {{ result.ticker }} - Historical Price</span>
-                  <div>
+                  <span><i class="bi bi-candlestick-chart-fill"></i> {{ result.ticker }} - Candlestick Chart</span>
+                  <div class="d-flex align-items-center gap-2">
+                    <small class="text-muted" id="candlePatternBadge"></small>
                     <span class="trend-badge {{ result.trend.lower() }} me-2"><i class="bi bi-{{ 'arrow-up' if result.trend == 'Bullish' else 'minus' if result.trend == 'Neutral' else 'arrow-down' }}"></i> {{ result.trend }}</span>
                     <span class="recommendation-badge {{ result.recommendation.lower() }}" style="font-size:0.75rem;padding:0.25rem 0.75rem;">{{ result.recommendation }}</span>
                   </div>
                 </div>
                 <div class="card-body">
-                  <div class="chart-container"><canvas id="stockPriceChart" data-prices='{{ result.historical_prices | tojson | safe }}' data-dates='{{ result.historical_dates | tojson | safe }}' data-rec="{{ result.recommendation }}"></canvas></div>
+                  <div class="candle-chart-wrap">
+                    <div class="chart-toolbar d-flex justify-content-end gap-2 mb-2">
+                      <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="1mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">1M</button>
+                      <button class="btn-outline-esg btn-sm candle-timeframe active" data-tf="3mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">3M</button>
+                      <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="6mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">6M</button>
+                      <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="1y" style="padding:0.2rem 0.5rem;font-size:0.7rem;">1Y</button>
+                    </div>
+                    <div id="tvCandleChart" class="candle-chart-main" style="width:100%;height:380px;"></div>
+                    <div id="tvVolumeChart" class="candle-chart-volume" style="width:100%;height:80px;"></div>
+                    <div class="d-flex justify-content-between mt-2">
+                      <small class="text-muted" id="candlePriceInfo"></small>
+                      <small class="text-muted" id="candlePatternList"></small>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -225,6 +240,107 @@
                 </div>
               </div>
               {% endif %}
+
+              <!-- === News Sentiment Card === -->
+              {% set ns = result.ai_explanation.news_sentiment if result.ai_explanation else None %}
+              {% if ns and ns.article_count > 0 %}
+              <div class="card mb-4 fade-in news-sentiment-card">
+                <div class="card-header">
+                  <span><i class="bi bi-newspaper"></i> News Sentiment</span>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="sentiment-summary-badge {{ ns.sentiment_label.lower() }}">
+                      <i class="bi bi-{{ 'emoji-sunglasses' if ns.sentiment_label == 'Positive' else 'emoji-neutral' if ns.sentiment_label == 'Neutral' else 'emoji-frown' }}"></i>
+                      {{ ns.sentiment_label }}
+                    </span>
+                    <span class="text-muted small">{{ ns.article_count }} articles</span>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <!-- Sentiment Breakdown -->
+                  <div class="news-breakdown-row mb-3">
+                    <div class="breakdown-item positive">
+                      <span class="breakdown-dot"></span>
+                      <span class="breakdown-count">{{ ns.sentiment_breakdown.positive }}</span>
+                      <span class="breakdown-label">Positive</span>
+                    </div>
+                    <div class="breakdown-item neutral">
+                      <span class="breakdown-dot"></span>
+                      <span class="breakdown-count">{{ ns.sentiment_breakdown.neutral }}</span>
+                      <span class="breakdown-label">Neutral</span>
+                    </div>
+                    <div class="breakdown-item negative">
+                      <span class="breakdown-dot"></span>
+                      <span class="breakdown-count">{{ ns.sentiment_breakdown.negative }}</span>
+                      <span class="breakdown-label">Negative</span>
+                    </div>
+                    <div class="breakdown-avg">
+                      <span class="text-muted small">Avg polarity: </span>
+                      <span class="fw-bold" style="color:{% if ns.avg_polarity > 0.1 %}#4caf50{% elif ns.avg_polarity < -0.1 %}#f44336{% else %}#ffc107{% endif %};">{{ '%.3f'|format(ns.avg_polarity) }}</span>
+                    </div>
+                  </div>
+                  <!-- Headlines -->
+                  <div class="news-headlines-list">
+                    {% for hl in ns.headlines %}
+                    {% if hl.url %}
+                    <a href="{{ hl.url }}" target="_blank" rel="noopener" class="news-headline-item {{ hl.sentiment }}">
+                    {% else %}
+                    <div class="news-headline-item {{ hl.sentiment }}">
+                    {% endif %}
+                      <span class="news-sentiment-dot {{ hl.sentiment }}" title="{{ hl.sentiment|capitalize }}">
+                        <i class="bi bi-{{ 'hand-thumbs-up-fill' if hl.sentiment == 'positive' else 'hand-thumbs-down-fill' if hl.sentiment == 'negative' else 'dash-circle-fill' }}"></i>
+                      </span>
+                      <span class="news-headline-text">
+                        <span class="news-headline-title">{{ hl.title }}</span>
+                        <span class="news-headline-meta">
+                          <span class="news-source">{{ hl.source }}</span>
+                          {% if hl.published_at %}
+                          <span class="news-date">{{ hl.published_at }}</span>
+                          {% endif %}
+                        </span>
+                      </span>
+                      <span class="news-open-link"><i class="bi bi-box-arrow-up-right"></i></span>
+                    {% if hl.url %}</a>{% else %}</div>{% endif %}
+                    {% endfor %}
+                  </div>
+                  <div class="news-footer">
+                    <small class="text-muted"><i class="bi bi-database me-1"></i>Powered by NewsAPI</small>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+              <!-- === End News Sentiment Card === -->
+
+              <!-- XAI Explainable AI Section -->
+              <div class="card mb-4 fade-in" id="xaiCard" style="display:none;">
+                <div class="card-header">
+                  <span>
+                    <i class="bi bi-lightbulb-fill text-warning me-2"></i>
+                    Explainable AI
+                    <span class="badge bg-info ms-2" style="font-size:0.6rem;vertical-align:middle;">XAI</span>
+                  </span>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="xai-method-toggle btn-group btn-group-sm" role="group" aria-label="XAI method">
+                      <button type="button" class="xai-toggle-btn active" data-method="auto" title="Auto-select best method">
+                        <i class="bi bi-robot"></i> Auto
+                      </button>
+                      <button type="button" class="xai-toggle-btn" data-method="shap" title="SHAP (Shapley Additive Explanations)">
+                        <i class="bi bi-graph-up"></i> SHAP
+                      </button>
+                      <button type="button" class="xai-toggle-btn" data-method="lime" title="LIME (Local Interpretable Model-agnostic Explanations)">
+                        <i class="bi bi-bar-chart-steps"></i> LIME
+                      </button>
+                    </div>
+                    <small class="text-muted" id="xaiMethod"></small>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div id="xaiSummary" class="mb-4 text-secondary small"></div>
+                  <div id="xaiContributions"></div>
+                  <div class="text-center mt-3">
+                    <small class="text-muted" id="xaiPriceImpact"></small>
+                  </div>
+                </div>
+              </div>
             </div>
             {% else %}
             <div class="text-center py-5 fade-in">
@@ -250,39 +366,43 @@
                 <i class="bi bi-graph-up me-1"></i> Predictions are for educational purposes only
             </p>
         </div>
+
+        <!-- SPA: script INSIDE main-content so it re-executes on SPA navigation -->
+        <script>
+        (function() {
+            // Draw confidence gauge on canvas
+            try {
+                var canvas = document.getElementById('confidenceGauge');
+                if (canvas && canvas.getContext) {
+                    var ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        var confidence = {{ result.confidence if result else 50 }};
+                        var size = 120;
+                        canvas.width = size;
+                        canvas.height = size;
+                        var pct = confidence / 100;
+                        var startA = Math.PI * 0.75;
+                        var endA = startA + (Math.PI * 1.5 * pct);
+                        var cx = size / 2, cy = size / 2, r = size / 2 - 10;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, Math.PI * 0.75, Math.PI * 2.25);
+                        ctx.strokeStyle = 'rgba(30, 58, 95, 0.5)';
+                        ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
+                        var color = confidence >= 80 ? '#4caf50' : confidence >= 60 ? '#ff9800' : '#f44336';
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, Math.PI * 0.75, endA, false);
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
+                    }
+                }
+            } catch(e) { /* gauge render is best-effort */ }
+            // Server-rendered chart is handled by initializeAJAXPrediction() in main.js
+            // No need to call renderCandlestickChart here to avoid double rendering conflicts
+        })();
+        </script>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const canvas = document.getElementById('confidenceGauge');
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                const size = 120;
-                canvas.width = size;
-                canvas.height = size;
-                const confidence = {{ result.confidence if result else 50 }};
-                const percentage = confidence / 100;
-                const startAngle = Math.PI * 0.75;
-                const endAngle = startAngle + (Math.PI * 1.5 * percentage);
-                const cx = size / 2, cy = size / 2, r = size / 2 - 10;
-                ctx.beginPath();
-                ctx.arc(cx, cy, r, Math.PI * 0.75, Math.PI * 2.25);
-                ctx.strokeStyle = 'rgba(30, 58, 95, 0.5)';
-                ctx.lineWidth = 8;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-                const color = confidence >= 80 ? '#4caf50' : confidence >= 60 ? '#ff9800' : '#f44336';
-                ctx.beginPath();
-                ctx.arc(cx, cy, r, Math.PI * 0.75, endAngle, false);
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 8;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-            }
-        });
-    </script>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version() }}"></script>
 </body>
 </html>
