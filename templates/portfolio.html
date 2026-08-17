@@ -8,7 +8,129 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+    .custom-modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); z-index: 9999;
+        display: none; align-items: center; justify-content: center;
+    }
+    .custom-modal-dialog { width: 90%; max-width: 500px; }
+    .custom-modal-content {
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        overflow: hidden;
+    }
+    .custom-modal-header {
+        padding: 1rem 1.25rem; display: flex; align-items: center;
+        justify-content: space-between; border-bottom: 1px solid var(--border-color);
+    }
+    .custom-modal-header h5 { margin: 0; color: var(--text-primary); }
+    .custom-modal-body { padding: 1.25rem; }
+    .custom-modal-footer {
+        padding: 0.75rem 1.25rem; display: flex; gap: 0.5rem;
+        justify-content: flex-end; border-top: 1px solid var(--border-color);
+    }
+    /* New Add Holding Form Styles */
+    .investment-preview {
+        background: rgba(76,175,80,0.08);
+        border: 1px solid rgba(76,175,80,0.2);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: 1rem;
+        transition: all 0.3s ease;
+    }
+    .investment-preview.has-error {
+        background: rgba(244,67,54,0.08);
+        border-color: rgba(244,67,54,0.2);
+    }
+    .preview-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.35rem 0;
+        font-size: 0.9rem;
+    }
+    .preview-row .label { color: var(--text-muted); }
+    .preview-row .value { font-weight: 600; color: var(--text-primary); }
+    .preview-divider {
+        height: 1px;
+        background: rgba(76,175,80,0.15);
+        margin: 0.4rem 0;
+    }
+    .preview-row .value.highlight {
+        color: #4caf50;
+        font-size: 1.1rem;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+    }
+    .form-control {
+        background: rgba(0,0,0,0.3);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0.6rem 0.85rem;
+        color: var(--text-primary);
+        width: 100%;
+        transition: border-color 0.2s ease;
+    }
+    .form-control:focus {
+        border-color: #4caf50;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(76,175,80,0.15);
+    }
+    .live-price-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 6px;
+        background: rgba(76,175,80,0.1);
+        color: #4caf50;
+        border: 1px solid rgba(76,175,80,0.2);
+        margin-left: 0.5rem;
+    }
+    .live-price-badge.loading {
+        background: rgba(255,193,7,0.1);
+        color: #ffc107;
+        border-color: rgba(255,193,7,0.2);
+    }
+    .input-with-icon {
+        position: relative;
+    }
+    .input-with-icon .currency-prefix {
+        position: absolute;
+        left: 0.85rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-weight: 600;
+        pointer-events: none;
+    }
+    .input-with-icon input {
+        padding-left: 1.75rem;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    </style>
 </head>
 <body>
     {% include 'sidebar.html' %}
@@ -38,7 +160,7 @@
                 <p class="text-muted">Track your virtual investments and simulate trading strategies</p>
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="showBuyModal()">
+                <button class="btn btn-primary" data-portfolio-action="add-holding">
                     <i class="bi bi-plus-lg"></i> Add Holding
                 </button>
             </div>
@@ -110,8 +232,8 @@
                                 <td class="pnl">--</td>
                                 <td class="return-pct">--</td>
                                 <td>
-                                    <button class="btn btn-sm btn-success" onclick="quickBuy('{{ h.ticker }}')"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-sm btn-danger" onclick="quickSell('{{ h.ticker }}')"><i class="bi bi-dash-lg"></i></button>
+                                    <button class="btn btn-sm btn-success" data-portfolio-action="quick-buy" data-ticker="{{ h.ticker }}"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-sm btn-danger" data-portfolio-action="quick-sell" data-ticker="{{ h.ticker }}"><i class="bi bi-dash-lg"></i></button>
                                 </td>
                             </tr>
                             {% else %}
@@ -131,216 +253,92 @@
                 <canvas id="allocationChart" height="300"></canvas>
             </div>
         </div>
-    </div>
 
-    <div class="modal fade" id="buyModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add Holding</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="buyForm">
-                        <div class="form-group">
-                            <label>Ticker</label>
-                            <select class="form-control" id="buyTicker" required>
-                                {% for s in stocks %}
-                                <option value="{{ s.ticker }}">{{ s.ticker }} - {{ s.company }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Shares</label>
-                            <input type="number" class="form-control" id="buyShares" value="1" min="1" step="1" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Buy Price (leave 0 for live price)</label>
-                            <input type="number" class="form-control" id="buyPrice" value="0" min="0" step="0.01">
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="submitBuy(this)">Buy</button>
+        <div id="buyModalOverlay" class="custom-modal-overlay" style="display:none;">
+            <div class="custom-modal-dialog">
+                <div class="custom-modal-content">
+                    <div class="custom-modal-header">
+                        <h5><i class="bi bi-cart-plus-fill text-esg me-2"></i> Add Holding</h5>
+                        <button type="button" class="btn-close" onclick="closeBuyModal()"></button>
+                    </div>
+                    <div class="custom-modal-body">
+                        <form id="buyForm">
+                            <div class="form-group">
+                                <label><i class="bi bi-tag me-1"></i> Select Stock</label>
+                                <select class="form-control" id="buyTicker" onchange="onTickerChange()" required>
+                                    <option value="">-- Choose a stock --</option>
+                                    {% for s in stocks %}
+                                    <option value="{{ s.ticker }}" data-company="{{ s.company }}">{{ s.ticker }} - {{ s.company }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="bi bi-cash-coin me-1"></i> Buy Price (per share)</label>
+                                <div class="d-flex align-items-center">
+                                    <div class="input-with-icon flex-grow-1">
+                                        <span class="currency-prefix" id="buyPriceCurrency">$</span>
+                                        <input type="number" class="form-control" id="buyPrice" placeholder="e.g. 150.00" min="0.01" step="0.01" oninput="onBuyPriceChange()">
+                                    </div>
+                                    <span class="live-price-badge" id="livePriceBadge">
+                                        <i class="bi bi-arrow-repeat"></i> Fetching...
+                                    </span>
+                                </div>
+                                <small class="text-muted" style="font-size:0.7rem;margin-top:0.25rem;display:block;">
+                                    <i class="bi bi-info-circle me-1"></i> Leave empty to use current live market price
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="bi bi-wallet2 me-1"></i> Investment Amount</label>
+                                <div class="input-with-icon">
+                                    <span class="currency-prefix" id="amountCurrency">$</span>
+                                    <input type="number" class="form-control" id="buyAmount" placeholder="e.g. 10000" min="1" step="0.01" oninput="onAmountChange()">
+                                </div>
+                                <small class="text-muted" style="font-size:0.7rem;margin-top:0.25rem;display:block;">
+                                    <i class="bi bi-info-circle me-1"></i> Total money you want to invest
+                                </small>
+                            </div>
+
+                            <div class="investment-preview" id="investmentPreview">
+                                <div class="preview-row">
+                                    <span class="label"><i class="bi bi-calculator me-1"></i> Calculated Shares</span>
+                                    <span class="value highlight" id="calcShares">--</span>
+                                </div>
+                                <div class="preview-divider"></div>
+                                <div class="preview-row">
+                                    <span class="label">Price per Share</span>
+                                    <span class="value" id="previewPrice">$0.00</span>
+                                </div>
+                                <div class="preview-row">
+                                    <span class="label">Total Investment</span>
+                                    <span class="value" id="previewTotal">$0.00</span>
+                                </div>
+                                <div class="preview-row">
+                                    <span class="label">Est. Transaction Cost</span>
+                                    <span class="value" id="previewFees">$0.00</span>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="custom-modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeBuyModal()"><i class="bi bi-x-lg me-1"></i> Cancel</button>
+                        <button type="button" class="btn btn-primary" id="buyConfirmBtn" onclick="submitBuy(this)" disabled>
+                            <i class="bi bi-check-lg me-1"></i> Confirm Purchase
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- Portfolio inline script (MUST be inside main-content for SPA router to execute) -->
+        <script>
+        setTimeout(function() {
+            if (typeof loadPortfolio === 'function') loadPortfolio();
+        }, 100);
+        </script>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script>
-    let portfolioCache = null;
-    let buyModal = null;
-
-    function showBuyModal() {
-        if (!buyModal) buyModal = new bootstrap.Modal(document.getElementById('buyModal'));
-        buyModal.show();
-    }
-
-    function submitBuy(btn) {
-        const ticker = document.getElementById('buyTicker').value;
-        const shares = parseFloat(document.getElementById('buyShares').value) || 1;
-        const price = parseFloat(document.getElementById('buyPrice').value) || 0;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Buying...';
-        fetch('/api/portfolio', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ticker, shares, price, action:'buy'})
-        }).then(function(r) { return r.json(); }).then(function(data) {
-            if (data.error) { showToast(data.error, 'error'); return; }
-            if (buyModal) buyModal.hide();
-            loadPortfolio();
-            showToast('Bought ' + shares + ' share(s) of ' + ticker, 'success');
-        }).catch(function() { showToast('Buy failed', 'error'); }).finally(function() {
-            btn.disabled = false;
-            btn.innerHTML = 'Buy';
-        });
-    }
-
-    function quickBuy(ticker) {
-        const shares = parseInt(prompt('Shares of ' + ticker + ' to buy:')) || 1;
-        fetch('/api/portfolio', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ticker, shares, price:0, action:'buy'})
-        }).then(function(r) { return r.json(); }).then(function(data) {
-            if (data.error) { showToast(data.error, 'error'); return; }
-            loadPortfolio();
-            showToast('Bought ' + shares + ' share(s) of ' + ticker, 'success');
-        }).catch(function() { showToast('Buy failed', 'error'); });
-    }
-
-    function quickSell(ticker) {
-        const shares = parseInt(prompt('Shares of ' + ticker + ' to sell:')) || 1;
-        fetch('/api/portfolio', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ticker, shares, action:'sell'})
-        }).then(function(r) { return r.json(); }).then(function(data) {
-            if (data.error) { showToast(data.error, 'error'); return; }
-            loadPortfolio();
-            showToast('Sold ' + shares + ' share(s) of ' + ticker, 'success');
-        }).catch(function() { showToast('Sell failed', 'error'); });
-    }
-
-    function loadPortfolio() {
-        fetch('/api/portfolio')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            portfolioCache = data;
-            const holdings = data.holdings;
-            const tbody = document.getElementById('portfolioBody');
-            tbody.innerHTML = '';
-            if (!holdings.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No holdings yet.</td></tr>';
-                updatePortfolioStats(0, 0, 0);
-                if (window.alloChart) { window.alloChart.destroy(); window.alloChart = null; }
-                return;
-            }
-            const tickerStr = holdings.map(function(h) { return h.ticker; }).join(',');
-            fetch('/api/ticker/prices?tickers=' + tickerStr)
-            .then(function(r) { return r.json(); })
-            .then(function(prices) {
-                let totalValue = 0;
-                let totalCost = 0;
-                holdings.forEach(function(h) {
-                    const p = prices[h.ticker];
-                    const currentPrice = p ? p.price : h.buy_price;
-                    const value = currentPrice * h.shares;
-                    const cost = h.buy_price * h.shares;
-                    const pnl = value - cost;
-                    const ret = cost > 0 ? ((pnl / cost) * 100) : 0;
-                    totalValue += value;
-                    totalCost += cost;
-                    tbody.innerHTML += '<tr data-ticker="' + h.ticker + '">' +
-                        '<td><strong>' + h.ticker + '</strong></td>' +
-                        '<td>' + h.shares + '</td>' +
-                        '<td>$' + h.buy_price.toFixed(2) + '</td>' +
-                        '<td>$' + currentPrice.toFixed(2) + '</td>' +
-                        '<td>$' + value.toFixed(2) + '</td>' +
-                        '<td class="' + (pnl >= 0 ? 'text-success' : 'text-danger') + '">' + (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2) + '</td>' +
-                        '<td class="' + (pnl >= 0 ? 'text-success' : 'text-danger') + '">' + (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%</td>' +
-                        '<td>' +
-                            '<button class="btn btn-sm btn-success" onclick="quickBuy(\'' + h.ticker + '\')"><i class="bi bi-plus-lg"></i></button> ' +
-                            '<button class="btn btn-sm btn-danger" onclick="quickSell(\'' + h.ticker + '\')"><i class="bi bi-dash-lg"></i></button>' +
-                        '</td></tr>';
-                });
-                updatePortfolioStats(totalCost, totalValue, totalValue - totalCost);
-                drawAllocationChart(holdings, prices);
-            })
-            .catch(function() {
-                showToast('Failed to load current prices', 'warning');
-                holdings.forEach(function(h) {
-                    const cost = h.buy_price * h.shares;
-                    tbody.innerHTML += '<tr data-ticker="' + h.ticker + '">' +
-                        '<td><strong>' + h.ticker + '</strong></td>' +
-                        '<td>' + h.shares + '</td>' +
-                        '<td>$' + h.buy_price.toFixed(2) + '</td>' +
-                        '<td class="text-muted">--</td>' +
-                        '<td class="text-muted">--</td>' +
-                        '<td class="text-muted">--</td>' +
-                        '<td class="text-muted">--</td>' +
-                        '<td>' +
-                            '<button class="btn btn-sm btn-success" onclick="quickBuy(\'' + h.ticker + '\')"><i class="bi bi-plus-lg"></i></button> ' +
-                            '<button class="btn btn-sm btn-danger" onclick="quickSell(\'' + h.ticker + '\')"><i class="bi bi-dash-lg"></i></button>' +
-                        '</td></tr>';
-                });
-                updatePortfolioStats(0, 0, 0);
-            });
-        })
-        .catch(function() {
-            showToast('Failed to load portfolio', 'error');
-        });
-    }
-
-    function updatePortfolioStats(cost, value, pnl) {
-        document.getElementById('totalInvested').textContent = '$' + cost.toFixed(2);
-        document.getElementById('currentValue').textContent = '$' + value.toFixed(2);
-        const ret = cost > 0 ? (pnl / cost) * 100 : 0;
-        const el = document.getElementById('totalReturn');
-        el.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%';
-        el.style.color = ret >= 0 ? 'var(--green)' : 'var(--red)';
-    }
-
-    function drawAllocationChart(holdings, prices) {
-        const labels = holdings.map(function(h) { return h.ticker; });
-        const data = holdings.map(function(h) {
-            const p = prices[h.ticker];
-            return p ? p.price * h.shares : h.buy_price * h.shares;
-        });
-        const colors = ['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69',
-                        '#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107',
-                        '#198754','#20c997','#0dcaf0','#0d6efd','#6610f2','#6f42c1'];
-        const ctx = document.getElementById('allocationChart').getContext('2d');
-        if (window.alloChart) window.alloChart.destroy();
-        window.alloChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: colors.slice(0, labels.length),
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'right', labels: { padding: 15, color: 'var(--text-primary)' } }
-                }
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        buyModal = new bootstrap.Modal(document.getElementById('buyModal'));
-        loadPortfolio();
-    });
-    </script>
+    <script>if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(r){r.unregister()})}).catch(function(){});</script>
+    <script src="{{ url_for('static', filename='js/main.js')}}?v={{ static_version() }}"></script>
 </body>
 </html>

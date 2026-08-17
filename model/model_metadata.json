@@ -1,80 +1,48 @@
 {
-  "model_type": "RandomForestClassifier",
-  "best_model_name": "Random Forest",
-  "accuracy": 0.7979863592075349,
-  "precision": 0.8070376574447224,
-  "recall": 0.7979863592075349,
-  "f1_score": 0.7981806232444265,
-  "cv_mean": 0.7393002400438774,
-  "cv_std": 0.003623922943780715,
+  "model_type": "XGBClassifier",
+  "best_model_name": "XGBoost",
+  "accuracy": 0.7031114536171852,
+  "precision": 0.70347425103137,
+  "recall": 0.7031114536171852,
+  "f1_score": 0.7032630323579524,
+  "cv_mean": 0.0,
+  "cv_std": 0.0,
   "confusion_matrix": [
     [
-      628,
-      219,
-      19
+      2627,
+      654,
+      284
     ],
     [
-      79,
-      1120,
-      103
+      620,
+      2336,
+      639
     ],
     [
-      18,
-      184,
-      709
+      256,
+      629,
+      2336
     ]
   ],
   "all_results": {
-    "Random Forest": {
-      "accuracy": 0.7979863592075349,
-      "precision": 0.8070376574447224,
-      "recall": 0.7979863592075349,
-      "f1_score": 0.7981806232444265,
-      "cv_mean": 0.7393002400438774,
-      "cv_std": 0.003623922943780715
-    },
-    "Decision Tree": {
-      "accuracy": 0.6709970769730432,
-      "precision": 0.6715655572428427,
-      "recall": 0.6709970769730432,
-      "f1_score": 0.6709986750740544,
-      "cv_mean": 0.6442774703031771,
-      "cv_std": 0.008569282153409496
-    },
-    "Gradient Boosting": {
-      "accuracy": 0.6921078272166288,
-      "precision": 0.7045684126386554,
-      "recall": 0.6921078272166288,
-      "f1_score": 0.689766051245813,
-      "cv_mean": 0.642167252728293,
-      "cv_std": 0.004546662155905582
-    },
-    "AdaBoost": {
-      "accuracy": 0.45047093212081846,
-      "precision": 0.4404314951283145,
-      "recall": 0.45047093212081846,
-      "f1_score": 0.3636031047266496,
-      "cv_mean": 0.4572408289863468,
-      "cv_std": 0.004783010980400143
-    },
     "XGBoost": {
-      "accuracy": 0.7132185774602143,
-      "precision": 0.7239502125497926,
-      "recall": 0.7132185774602143,
-      "f1_score": 0.7117402139407378,
-      "cv_mean": 0.6661252224936863,
-      "cv_std": 0.0012967253423259622
+      "accuracy": 0.7031114536171852,
+      "precision": 0.70347425103137,
+      "recall": 0.7031114536171852,
+      "f1_score": 0.7032630323579524,
+      "cv_mean": 0.0,
+      "cv_std": 0.0
     },
-    "Ensemble (Voting)": {
-      "accuracy": 0.754790516401429,
-      "precision": 0.7633259570540334,
-      "recall": 0.754790516401429,
-      "f1_score": 0.7545612486374943,
-      "cv_mean": 0.5723983654649623,
-      "cv_std": 0.013098894245531347
+    "LightGBM": {
+      "accuracy": 0.6590887197765148,
+      "precision": 0.6600451064771038,
+      "recall": 0.6590887197765148,
+      "f1_score": 0.6584328111862652,
+      "cv_mean": 0.0,
+      "cv_std": 0.0
     }
   },
-  "feature_count": 25,
+  "feature_count": 36,
   "features": [
     "SMA_10",
     "SMA_30",
@@ -97,15 +65,30 @@
     "VPT_Change",
     "RSI_SMA",
     "Price_Position",
+    "ATR_14",
+    "STOCH_K",
+    "STOCH_D",
+    "WILLIAMS_R",
+    "MFI",
+    "Log_Return_1d",
+    "Log_Return_5d",
+    "Log_Return_20d",
+    "Price_Momentum",
+    "Volume_Change_1d",
+    "High_Low_Pct",
     "ESG_Score",
     "Environmental_Score",
     "Social_Score",
     "Governance_Score"
   ],
-  "training_date": "2026-07-21 20:52:23",
+  "training_date": "2026-07-26 19:15:37",
   "label_classes": [
     "Buy",
     "Hold",
     "Sell"
-  ]
+  ],
+  "training_source": "REAL_MARKET_DATA",
+  "forward_window_days": 20,
+  "buy_threshold": 0.03,
+  "sell_threshold": -0.03
 }

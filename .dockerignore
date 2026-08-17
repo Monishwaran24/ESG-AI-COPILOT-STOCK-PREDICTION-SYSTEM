@@ -1,0 +1,62 @@
+# Git
+.git
+.gitignore
+
+# Environment variables (API keys, secrets) - CRITICAL: never bake into image
+.env
+.env.local
+.env.production
+.env.development
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual envs
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database files (mounted as volumes at runtime)
+*.db
+*.sqlite
+*.sqlite3
+
+# Model files (trained on deploy, not baked into image)
+*.pkl
+*.h5
+*.keras
+
+# Logs (recreated in container)
+logs/
+*.log
+train_log.txt
+app_error.txt
+app_output.txt
+
+# Backups (recreated in container)
+backups/
+
+# Docker
+.docker/
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Jupyter
+.ipynb_checkpoints/

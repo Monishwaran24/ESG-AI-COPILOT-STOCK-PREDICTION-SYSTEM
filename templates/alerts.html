@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="News Alerts Center - ESG Stock Prediction"/>
+    <title>News Alerts - ESG Stock Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include 'sidebar.html' %}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="main-content">
+        <nav class="top-navbar">
+            <h1 class="page-title">
+                <i class="bi bi-bell-fill text-warning"></i> News Alerts Center
+            </h1>
+            <div class="top-navbar-right">
+                <div class="navbar-ticker-wrap">
+                    <div class="navbar-ticker-items" id="tickerItems"></div>
+                </div>
+                <div class="datetime-display">
+                    <i class="bi bi-clock me-1"></i>
+                    <span id="liveClock">Loading...</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Stats Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="alert-stat-card total">
+                    <div class="alert-stat-icon"><i class="bi bi-bell"></i></div>
+                    <div class="alert-stat-content">
+                        <div class="alert-stat-value" id="totalAlerts">--</div>
+                        <div class="alert-stat-label">Total Alerts</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="alert-stat-card positive">
+                    <div class="alert-stat-icon"><i class="bi bi-emoji-sunglasses"></i></div>
+                    <div class="alert-stat-content">
+                        <div class="alert-stat-value" id="positiveAlerts">--</div>
+                        <div class="alert-stat-label">Positive</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="alert-stat-card negative">
+                    <div class="alert-stat-icon"><i class="bi bi-emoji-frown"></i></div>
+                    <div class="alert-stat-content">
+                        <div class="alert-stat-value" id="negativeAlerts">--</div>
+                        <div class="alert-stat-label">Negative</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="alert-stat-card unread">
+                    <div class="alert-stat-icon"><i class="bi bi-envelope-open"></i></div>
+                    <div class="alert-stat-content">
+                        <div class="alert-stat-value" id="unreadAlerts">--</div>
+                        <div class="alert-stat-label">Unread</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card mb-4 fade-in">
+            <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="alert-filter-btn active" data-filter="all" onclick="filterAlerts('all')">
+                        <i class="bi bi-list-ul"></i> All
+                    </button>
+                    <button class="alert-filter-btn" data-filter="positive" onclick="filterAlerts('positive')">
+                        <i class="bi bi-hand-thumbs-up-fill text-success"></i> Positive
+                    </button>
+                    <button class="alert-filter-btn" data-filter="negative" onclick="filterAlerts('negative')">
+                        <i class="bi bi-hand-thumbs-down-fill text-danger"></i> Negative
+                    </button>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small" id="alertCountDisplay">0 alerts</span>
+                    <button class="btn-esg btn-sm" onclick="markAllAlertsRead()">
+                        <i class="bi bi-check2-all"></i> Mark All Read
+                    </button>
+                    <button class="btn-outline-esg btn-sm" onclick="refreshAlerts()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts List -->
+        <div id="alertsContainer">
+            <div class="text-center py-5">
+                <div class="spinner-border text-esg" role="status"></div>
+                <p class="text-muted mt-3">Loading alerts...</p>
+            </div>
+        </div>
+
+        <!-- Load More -->
+        <div class="text-center mt-4" id="loadMoreWrap" style="display:none;">
+            <button class="btn-outline-esg" onclick="loadMoreAlerts()">
+                <i class="bi bi-plus-circle"></i> Load More
+            </button>
+        </div>
+
+        <div class="text-center py-4 mt-4">
+            <p class="text-muted small mb-0">
+                <i class="bi bi-cpu me-1"></i> ESG Stock Prediction System &copy; 2024
+                <span class="mx-2">|</span>
+                <i class="bi bi-newspaper me-1"></i> News alerts powered by NewsAPI &amp; Finnhub
+            </p>
+        </div>
+
+        <script>
+    var _allAlerts = [];
+    var _displayedAlerts = [];
+    var _currentFilter = 'all';
+    var _alertPage = 0;
+    var _alertLimit = 20;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshAlerts();
+    });
+
+    function refreshAlerts() {
+        _alertPage = 0;
+        document.getElementById('alertsContainer').innerHTML =
+            '<div class="text-center py-5"><div class="spinner-border text-esg" role="status"></div><p class="text-muted mt-3">Loading alerts...</p></div>';
+        fetch('/api/news/alerts/history?limit=999')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                _allAlerts = data.alerts || [];
+                updateStats();
+                renderAlerts();
+            })
+            .catch(function() {
+                document.getElementById('alertsContainer').innerHTML =
+                    '<div class="text-center py-5 text-muted"><i class="bi bi-exclamation-triangle fs-1 d-block mb-3"></i>Failed to load alerts</div>';
+            });
+    }
+
+    function isAlertPositive(a) {
+        return a.alert_type === 'positive' || a.sentiment_label === 'Positive';
+    }
+
+    function updateStats() {
+        var total = _allAlerts.length;
+        var positive = _allAlerts.filter(function(a) { return isAlertPositive(a); }).length;
+        var negative = _allAlerts.filter(function(a) { return !isAlertPositive(a) && (a.alert_type === 'negative' || a.sentiment_label === 'Negative'); }).length;
+        var unread = _allAlerts.filter(function(a) { return !a.is_read; }).length;
+        document.getElementById('totalAlerts').textContent = total;
+        document.getElementById('positiveAlerts').textContent = positive;
+        document.getElementById('negativeAlerts').textContent = negative;
+        document.getElementById('unreadAlerts').textContent = unread;
+    }
+
+    function isAlertNegative(a) {
+        return a.alert_type === 'negative' || a.sentiment_label === 'Negative';
+    }
+
+    function filterAlerts(filter) {
+        _currentFilter = filter;
+        _alertPage = 0;
+        document.querySelectorAll('.alert-filter-btn').forEach(function(btn) {
+            btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+        });
+        renderAlerts();
+    }
+
+    function renderAlerts() {
+        var filtered = _allAlerts;
+        if (_currentFilter === 'positive') {
+            filtered = _allAlerts.filter(function(a) { return isAlertPositive(a); });
+        } else if (_currentFilter === 'negative') {
+            filtered = _allAlerts.filter(function(a) { return isAlertNegative(a); });
+        }
+        _displayedAlerts = filtered;
+
+        document.getElementById('alertCountDisplay').textContent = filtered.length + ' alerts';
+
+        if (filtered.length === 0) {
+            document.getElementById('alertsContainer').innerHTML =
+                '<div class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-3"></i>No alerts found</div>' +
+                '<div class="text-center"><a href="/dashboard" class="btn-esg btn-sm"><i class="bi bi-star me-1"></i> Watch Stocks</a></div>';
+            document.getElementById('loadMoreWrap').style.display = 'none';
+            return;
+        }
+
+        var page = _alertPage;
+        var limit = _alertLimit;
+        var pageAlerts = filtered.slice(0, (page + 1) * limit);
+        var hasMore = pageAlerts.length < filtered.length;
+
+        var html = '<div class="alerts-list">';
+        pageAlerts.forEach(function(a) {
+            var isPositive = isAlertPositive(a);
+            var icon = isPositive ? 'bi-emoji-sunglasses' : 'bi-emoji-frown';
+            var color = isPositive ? '#4caf50' : '#f44336';
+            var bgClass = isPositive ? 'alert-card-positive' : 'alert-card-negative';
+            var polarityVal = (a.avg_polarity || 0);
+            var polarityPct = Math.min(Math.abs(polarityVal) * 100, 100);
+            var polarityColor = polarityVal > 0 ? '#4caf50' : '#f44336';
+            var dateStr = a.created_at || '';
+            var timeAgo = dateStr ? timeSince(dateStr) : '';
+            var ticker = a.ticker || 'N/A';
+            var headlines = (typeof a.headlines === 'string') ? a.headlines : (a.headline_text || '');
+
+            html += '<div class="alert-card ' + bgClass + ' fade-in" data-type="' + a.alert_type + '">' +
+                '<div class="alert-card-left">' +
+                    '<div class="alert-sentiment-icon" style="background:' + color + '20;color:' + color + ';">' +
+                        '<i class="bi ' + icon + '"></i>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="alert-card-body">' +
+                    '<div class="alert-card-header">' +
+                        '<span class="alert-ticker-badge" style="border-left:3px solid ' + color + ';">' +
+                            '<i class="bi bi-graph-up-arrow me-1"></i>' + escapeHtml(ticker) +
+                        '</span>' +
+                        '<span class="alert-sentiment-pill" style="background:' + color + '20;color:' + color + ';">' +
+                            (isPositive ? 'Positive' : 'Negative') +
+                        '</span>' +
+                        '<span class="alert-time">' + timeAgo + '</span>' +
+                    '</div>' +
+                    '<div class="alert-card-body-inner">' +
+                        '<div class="alert-polarity-row">' +
+                            '<span class="text-muted small">Polarity:</span>' +
+                            '<div class="alert-polarity-bar-wrap">' +
+                                '<div class="alert-polarity-bar" style="width:' + polarityPct + '%;background:' + polarityColor + ';"></div>' +
+                            '</div>' +
+                            '<span class="alert-polarity-value" style="color:' + polarityColor + ';">' + polarityVal.toFixed(3) + '</span>' +
+                        '</div>' +
+                        '<div class="alert-article-count"><i class="bi bi-newspaper me-1"></i>' + (a.article_count || 0) + ' articles analyzed</div>' +
+                    '</div>' +
+                    (headlines ? '<div class="alert-headline-text"><i class="bi bi-chat-quote me-1 text-muted"></i>' + escapeHtml(headlines) + '</div>' : '') +
+                    '<div class="alert-card-actions">' +
+                        '<a href="/predict?ticker=' + ticker + '" class="alert-action-link" onclick="return navigateSPA(event, this.href)">' +
+                            '<i class="bi bi-graph-up-arrow"></i> View Analysis' +
+                        '</a>' +
+                        '<span class="text-muted small">' + dateStr + '</span>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        });
+        html += '</div>';
+
+        document.getElementById('alertsContainer').innerHTML = html;
+        document.getElementById('loadMoreWrap').style.display = hasMore ? 'block' : 'none';
+
+        // Stagger animation
+        document.querySelectorAll('.alert-card.fade-in').forEach(function(el, i) {
+            setTimeout(function() {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(15px)';
+                el.style.transition = 'all 0.4s ease';
+                setTimeout(function() {
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, 50);
+            }, i * 60);
+        });
+    }
+
+    function loadMoreAlerts() {
+        _alertPage++;
+        renderAlerts();
+    }
+
+    function markAllAlertsRead() {
+        fetch('/api/news/alerts/mark-read', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                _allAlerts.forEach(function(a) { a.is_read = 1; });
+                updateStats();
+                showToast('All alerts marked as read', 'success');
+                // Update navbar badge
+                var badge = document.getElementById('notificationBadge');
+                if (badge) {
+                    badge.style.display = 'none';
+                    badge.textContent = '0';
+                }
+            })
+            .catch(function() {
+                showToast('Failed to mark alerts as read', 'error');
+            });
+    }
+
+    function timeSince(dateStr) {
+        if (!dateStr) return '';
+        var date = new Date(dateStr);
+        var now = new Date();
+        var seconds = Math.floor((now - date) / 1000);
+        if (isNaN(seconds)) return dateStr;
+        if (seconds < 60) return seconds + 's ago';
+        var minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return minutes + 'm ago';
+        var hours = Math.floor(minutes / 60);
+        if (hours < 24) return hours + 'h ago';
+        var days = Math.floor(hours / 24);
+        if (days < 7) return days + 'd ago';
+        return date.toLocaleDateString();
+    }
+
+    function navigateSPA(event, href) {
+        if (window.navigateTo) {
+            event.preventDefault();
+            window.navigateTo(href);
+            return false;
+        }
+        return true;
+    }
+
+    function escapeHtml(text) {
+        var d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
+    }
+
+    function showToast(message, type) {
+        type = type || 'info';
+        var container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            document.body.appendChild(container);
+        }
+        var icons = { success: 'bi-check-circle-fill', error: 'bi-x-circle-fill', warning: 'bi-exclamation-triangle-fill', info: 'bi-info-circle-fill' };
+        var icon = icons[type] || icons.info;
+        var toast = document.createElement('div');
+        toast.className = 'toast-custom ' + type;
+        toast.innerHTML = '<i class="bi ' + icon + '"></i> ' + escapeHtml(message);
+        container.appendChild(toast);
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 3500);
+    }
+    </script>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(r){r.unregister()})}).catch(function(){});</script>
+    <script src="{{ url_for('static', filename='js/main.js')}}?v={{ static_version() }}"></script>
+</body>
+</html>

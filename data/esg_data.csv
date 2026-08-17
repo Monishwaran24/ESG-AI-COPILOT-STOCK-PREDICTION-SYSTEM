@@ -1,51 +1,117 @@
-Ticker,Company,Industry,ESG_Score,Environmental_Score,Social_Score,Governance_Score,ESG_Risk_Rating,Controversy_Level
-AAPL,Apple Inc.,Technology,78.5,72.3,82.1,81.0,Low,Low
-MSFT,Microsoft Corporation,Technology,82.1,76.8,85.3,84.2,Low,Low
-GOOGL,Alphabet Inc.,Technology,74.2,68.5,78.9,75.2,Low,Medium
-AMZN,Amazon.com Inc.,Consumer Cyclical,62.8,55.4,68.2,64.8,Medium,High
-TSLA,Tesla Inc.,Automotive,58.6,65.2,52.4,58.2,Medium,Medium
-JPM,JPMorgan Chase & Co.,Financial,71.3,62.8,74.5,76.6,Low,Low
-V,Visa Inc.,Financial,73.5,64.2,76.8,79.5,Low,Low
-JNJ,Johnson & Johnson,Healthcare,76.8,68.5,80.2,81.7,Low,Low
-WMT,Walmart Inc.,Consumer Defensive,70.2,62.3,74.8,73.5,Low,Low
-PG,Procter & Gamble Co.,Consumer Defensive,72.5,65.8,75.2,76.5,Low,Low
-NVDA,NVIDIA Corporation,Technology,68.3,62.5,70.8,71.6,Low,Low
-DIS,The Walt Disney Company,Communication Services,67.5,58.2,72.3,72.0,Medium,Low
-NFLX,Netflix Inc.,Communication Services,64.2,55.8,68.5,68.3,Medium,Low
-ADBE,Adobe Inc.,Technology,75.8,70.2,78.5,78.7,Low,Low
-CRM,Salesforce Inc.,Technology,79.2,74.5,82.3,80.8,Low,Low
-INTC,Intel Corporation,Technology,65.8,58.5,68.2,70.7,Medium,Medium
-AMD,Advanced Micro Devices Inc.,Technology,62.3,55.2,65.8,65.9,Medium,Low
-PYPL,PayPal Holdings Inc.,Financial,72.5,63.8,75.2,78.5,Low,Low
-BA,Boeing Company,Industrials,52.8,45.2,56.5,56.7,High,High
-NKE,Nike Inc.,Consumer Cyclical,68.5,60.2,72.8,72.5,Low,Medium
-UNH,UnitedHealth Group Inc.,Healthcare,74.2,65.8,78.5,78.3,Low,Low
-HD,The Home Depot Inc.,Consumer Cyclical,69.8,61.5,73.2,74.7,Low,Low
-MRK,Merck & Co. Inc.,Healthcare,72.8,64.5,76.2,77.7,Low,Low
-PFE,Pfizer Inc.,Healthcare,70.5,62.8,74.5,74.2,Low,Medium
-KO,The Coca-Cola Company,Consumer Defensive,71.5,63.2,75.8,75.5,Low,Low
-PEP,PepsiCo Inc.,Consumer Defensive,72.8,65.5,76.2,76.7,Low,Low
-COST,Costco Wholesale Corp.,Consumer Defensive,73.5,66.8,77.2,76.5,Low,Low
-ABT,Abbott Laboratories,Healthcare,75.2,68.5,78.5,78.7,Low,Low
-ACN,Accenture plc,Technology,78.5,72.8,81.2,81.5,Low,Low
-LIN,Linde plc,Basic Materials,74.8,68.2,77.5,78.7,Low,Low
-TMO,Thermo Fisher Scientific Inc.,Healthcare,76.2,70.5,79.2,78.9,Low,Low
-AVGO,Broadcom Inc.,Technology,66.5,60.2,69.8,69.5,Medium,Low
-DHR,Danaher Corporation,Healthcare,74.5,67.8,78.2,77.5,Low,Low
-TXN,Texas Instruments Inc.,Technology,71.8,64.5,74.8,76.1,Low,Low
-QCOM,Qualcomm Inc.,Technology,67.5,60.8,70.2,71.5,Medium,Low
-ORCL,Oracle Corporation,Technology,63.5,56.2,66.8,67.5,Medium,Low
-UPS,United Parcel Service Inc.,Industrials,69.2,61.5,72.5,73.6,Low,Low
-AMAT,Applied Materials Inc.,Technology,66.8,60.5,69.2,70.7,Medium,Low
-IBM,International Business Machines,Technology,70.5,63.8,73.5,74.2,Low,Medium
-CSCO,Cisco Systems Inc.,Technology,72.5,65.2,75.8,76.5,Low,Low
-SBUX,Starbucks Corporation,Consumer Cyclical,68.2,60.5,72.5,71.6,Low,Medium
-MCD,McDonald's Corporation,Consumer Cyclical,65.5,56.8,68.5,71.2,Medium,Low
-CAT,Caterpillar Inc.,Industrials,62.8,54.5,66.2,67.7,Medium,Low
-GE,General Electric Company,Industrials,58.5,52.8,60.5,62.2,Medium,High
-INTU,Intuit Inc.,Technology,74.2,68.5,76.8,77.1,Low,Low
-AMGN,Amgen Inc.,Healthcare,71.8,64.5,74.8,76.1,Low,Low
-BKNG,Booking Holdings Inc.,Consumer Cyclical,63.5,55.2,67.8,67.5,Medium,Low
-SCHW,Charles Schwab Corporation,Financial,70.2,62.8,73.5,74.3,Low,Low
-VZ,Verizon Communications Inc.,Communication Services,68.5,60.2,72.5,72.8,Low,Low
-CMCSA,Comcast Corporation,Communication Services,62.5,54.8,65.2,67.5,Medium,Medium
+Ticker,Company,Industry,Country,ESG_Score,Environmental_Score,Social_Score,Governance_Score,ESG_Risk_Rating,Controversy_Level
+AAPL,Apple Inc.,Technology,US,78.5,72.3,82.1,81.0,Low,Low
+MSFT,Microsoft Corporation,Technology,US,82.1,76.8,85.3,84.2,Low,Low
+GOOGL,Alphabet Inc.,Technology,US,74.2,68.5,78.9,75.2,Low,Medium
+AMZN,Amazon.com Inc.,Consumer Cyclical,US,62.8,55.4,68.2,64.8,Medium,High
+TSLA,Tesla Inc.,Automotive,US,58.6,65.2,52.4,58.2,Medium,Medium
+JPM,JPMorgan Chase & Co.,Financial,US,71.3,62.8,74.5,76.6,Low,Low
+V,Visa Inc.,Financial,US,73.5,64.2,76.8,79.5,Low,Low
+JNJ,Johnson & Johnson,Healthcare,US,76.8,68.5,80.2,81.7,Low,Low
+WMT,Walmart Inc.,Consumer Defensive,US,70.2,62.3,74.8,73.5,Low,Low
+PG,Procter & Gamble Co.,Consumer Defensive,US,72.5,65.8,75.2,76.5,Low,Low
+NVDA,NVIDIA Corporation,Technology,US,68.3,62.5,70.8,71.6,Low,Low
+DIS,The Walt Disney Company,Communication Services,US,67.5,58.2,72.3,72.0,Medium,Low
+NFLX,Netflix Inc.,Communication Services,US,64.2,55.8,68.5,68.3,Medium,Low
+ADBE,Adobe Inc.,Technology,US,75.8,70.2,78.5,78.7,Low,Low
+CRM,Salesforce Inc.,Technology,US,79.2,74.5,82.3,80.8,Low,Low
+INTC,Intel Corporation,Technology,US,65.8,58.5,68.2,70.7,Medium,Medium
+AMD,Advanced Micro Devices Inc.,Technology,US,62.3,55.2,65.8,65.9,Medium,Low
+PYPL,PayPal Holdings Inc.,Financial,US,72.5,63.8,75.2,78.5,Low,Low
+BA,Boeing Company,Industrials,US,52.8,45.2,56.5,56.7,High,High
+NKE,Nike Inc.,Consumer Cyclical,US,68.5,60.2,72.8,72.5,Low,Medium
+UNH,UnitedHealth Group Inc.,Healthcare,US,74.2,65.8,78.5,78.3,Low,Low
+HD,The Home Depot Inc.,Consumer Cyclical,US,69.8,61.5,73.2,74.7,Low,Low
+MRK,Merck & Co. Inc.,Healthcare,US,72.8,64.5,76.2,77.7,Low,Low
+PFE,Pfizer Inc.,Healthcare,US,70.5,62.8,74.5,74.2,Low,Medium
+KO,The Coca-Cola Company,Consumer Defensive,US,71.5,63.2,75.8,75.5,Low,Low
+PEP,PepsiCo Inc.,Consumer Defensive,US,72.8,65.5,76.2,76.7,Low,Low
+COST,Costco Wholesale Corp.,Consumer Defensive,US,73.5,66.8,77.2,76.5,Low,Low
+ABT,Abbott Laboratories,Healthcare,US,75.2,68.5,78.5,78.7,Low,Low
+ACN,Accenture plc,Technology,US,78.5,72.8,81.2,81.5,Low,Low
+LIN,Linde plc,Basic Materials,US,74.8,68.2,77.5,78.7,Low,Low
+TMO,Thermo Fisher Scientific Inc.,Healthcare,US,76.2,70.5,79.2,78.9,Low,Low
+AVGO,Broadcom Inc.,Technology,US,66.5,60.2,69.8,69.5,Medium,Low
+DHR,Danaher Corporation,Healthcare,US,74.5,67.8,78.2,77.5,Low,Low
+TXN,Texas Instruments Inc.,Technology,US,71.8,64.5,74.8,76.1,Low,Low
+QCOM,Qualcomm Inc.,Technology,US,67.5,60.8,70.2,71.5,Medium,Low
+ORCL,Oracle Corporation,Technology,US,63.5,56.2,66.8,67.5,Medium,Low
+UPS,United Parcel Service Inc.,Industrials,US,69.2,61.5,72.5,73.6,Low,Low
+AMAT,Applied Materials Inc.,Technology,US,66.8,60.5,69.2,70.7,Medium,Low
+IBM,International Business Machines,Technology,US,70.5,63.8,73.5,74.2,Low,Medium
+CSCO,Cisco Systems Inc.,Technology,US,72.5,65.2,75.8,76.5,Low,Low
+SBUX,Starbucks Corporation,Consumer Cyclical,US,68.2,60.5,72.5,71.6,Low,Medium
+MCD,McDonald's Corporation,Consumer Cyclical,US,65.5,56.8,68.5,71.2,Medium,Low
+CAT,Caterpillar Inc.,Industrials,US,62.8,54.5,66.2,67.7,Medium,Low
+GE,General Electric Company,Industrials,US,58.5,52.8,60.5,62.2,Medium,High
+INTU,Intuit Inc.,Technology,US,74.2,68.5,76.8,77.1,Low,Low
+AMGN,Amgen Inc.,Healthcare,US,71.8,64.5,74.8,76.1,Low,Low
+BKNG,Booking Holdings Inc.,Consumer Cyclical,US,63.5,55.2,67.8,67.5,Medium,Low
+SCHW,Charles Schwab Corporation,Financial,US,70.2,62.8,73.5,74.3,Low,Low
+VZ,Verizon Communications Inc.,Communication Services,US,68.5,60.2,72.5,72.8,Low,Low
+CMCSA,Comcast Corporation,Communication Services,US,62.5,54.8,65.2,67.5,Medium,Medium
+META,Meta Platforms Inc.,Communication Services,US,65.8,58.5,68.2,70.7,Medium,Medium
+BRK.B,Berkshire Hathaway Inc.,Financial,US,71.5,62.8,75.2,76.5,Low,Low
+NOW,Servicenow Inc.,Technology,US,72.5,66.8,75.5,75.2,Low,Low
+RELIANCE,Reliance Industries Ltd.,Energy,IN,68.5,62.3,70.2,73.0,Medium,Medium
+TCS,Tata Consultancy Services,Technology,IN,78.2,72.5,81.5,80.6,Low,Low
+HDFCBANK,HDFC Bank Ltd.,Financial,IN,74.5,66.8,76.8,79.9,Low,Low
+INFY,Infosys Ltd.,Technology,IN,80.5,75.2,83.5,82.8,Low,Low
+ICICIBANK,ICICI Bank Ltd.,Financial,IN,73.2,65.5,75.2,78.9,Low,Low
+HINDUNILVR,Hindustan Unilever Ltd.,Consumer Defensive,IN,76.8,70.5,79.5,80.4,Low,Low
+ITC,ITC Ltd.,Consumer Defensive,IN,78.5,72.8,81.2,81.5,Low,Low
+SBIN,State Bank of India,Financial,IN,65.5,58.2,68.5,69.8,Medium,Medium
+BHARTIARTL,Bharti Airtel Ltd.,Telecommunication,IN,66.2,59.5,68.8,70.3,Medium,Low
+KOTAKBANK,Kotak Mahindra Bank,Financial,IN,72.8,64.5,74.8,79.1,Low,Low
+BAJFINANCE,Bajaj Finance Ltd.,Financial,IN,71.5,63.8,73.2,77.5,Low,Low
+LT,Larsen & Toubro Ltd.,Construction,IN,68.8,60.5,72.5,73.4,Medium,Low
+WIPRO,Wipro Ltd.,Technology,IN,73.5,67.2,76.5,76.8,Low,Low
+AXISBANK,Axis Bank Ltd.,Financial,IN,71.8,63.5,73.8,78.1,Low,Low
+TITAN,Titan Company Ltd.,Consumer Cyclical,IN,72.5,65.8,74.5,77.2,Low,Low
+MARUTI,Maruti Suzuki India Ltd.,Automotive,IN,64.5,56.8,67.5,69.2,Medium,Low
+ASIANPAINT,Asian Paints Ltd.,Basic Materials,IN,73.8,68.2,75.5,77.7,Low,Low
+HCLTECH,HCL Technologies Ltd.,Technology,IN,74.2,67.5,77.8,77.3,Low,Low
+SUNPHARMA,Sun Pharmaceutical Industries Ltd.,Healthcare,IN,67.5,60.2,70.5,71.8,Medium,Medium
+NTPC,NTPC Ltd.,Utilities,IN,66.8,62.5,68.8,69.1,Medium,Low
+ONGC,Oil and Natural Gas Corporation Ltd.,Energy,IN,58.5,52.8,61.2,61.5,High,Medium
+POWERGRID,Power Grid Corporation of India Ltd.,Utilities,IN,68.5,63.2,70.5,72.2,Medium,Low
+M_M,Mahindra & Mahindra Ltd.,Automotive,IN,66.8,58.5,70.5,71.4,Medium,Low
+NESTLEIND,Nestle India Ltd.,Consumer Defensive,IN,75.5,68.5,78.2,79.8,Low,Low
+ULTRACEMCO,UltraTech Cement Ltd.,Basic Materials,IN,69.5,62.8,72.5,73.2,Medium,Low
+HDFCLIFE,HDFC Life Insurance Company Ltd.,Financial,IN,73.5,65.8,75.5,79.2,Low,Low
+SBILIFE,SBI Life Insurance Company Ltd.,Financial,IN,70.5,62.5,72.8,76.2,Low,Low
+DRREDDY,Dr. Reddy's Laboratories Ltd.,Healthcare,IN,72.8,66.5,76.2,75.7,Low,Low
+BAJAJFINSV,Bajaj Finserv Ltd.,Financial,IN,70.8,62.8,72.5,77.1,Low,Low
+TECHM,Tech Mahindra Ltd.,Technology,IN,71.5,64.8,74.2,75.5,Low,Low
+BRITANNIA,Britannia Industries Ltd.,Consumer Defensive,IN,72.5,65.2,75.8,76.5,Low,Low
+DIVISLAB,Divis Laboratories Ltd.,Healthcare,IN,71.8,65.8,74.5,75.1,Low,Low
+CIPLA,Cipla Ltd.,Healthcare,IN,69.5,62.5,72.8,73.2,Medium,Low
+HINDALCO,Hindalco Industries Ltd.,Basic Materials,IN,55.5,48.2,59.5,58.8,High,Medium
+TATASTEEL,Tata Steel Ltd.,Basic Materials,IN,58.5,52.5,61.8,61.2,High,Medium
+JSWSTEEL,JSW Steel Ltd.,Basic Materials,IN,55.8,49.5,58.8,59.1,High,Medium
+COALINDIA,Coal India Ltd.,Energy,IN,48.5,42.8,52.5,50.2,High,High
+ADANIPORTS,Adani Ports and Special Economic Zone Ltd.,Services,IN,52.5,46.2,55.8,55.5,High,High
+GRASIM,Grasim Industries Ltd.,Basic Materials,IN,62.5,55.8,65.8,66.2,Medium,Low
+BPCL,Bharat Petroleum Corporation Ltd.,Energy,IN,54.5,48.5,57.2,57.8,High,Medium
+HEROMOTOCO,Hero MotoCorp Ltd.,Automotive,IN,65.5,58.2,68.5,69.8,Medium,Low
+SHREECEM,Shree Cement Ltd.,Basic Materials,IN,66.5,58.5,70.2,71.2,Medium,Low
+INDUSINDBK,IndusInd Bank Ltd.,Financial,IN,69.5,61.5,71.8,75.2,Low,Low
+EICHERMOT,Eicher Motors Ltd.,Automotive,IN,64.5,56.8,67.5,69.2,Medium,Low
+TATAMOTORS,Tata Motors Ltd.,Automotive,IN,61.5,55.2,65.2,64.1,Medium,Medium
+UPL,UPL Ltd.,Basic Materials,IN,60.5,55.8,62.5,63.2,Medium,Medium
+BAJAJ_AUTO,Bajaj Auto Ltd.,Automotive,IN,68.5,61.5,71.2,73.2,Low,Low
+MARICO,Marico Ltd.,Consumer Defensive,IN,73.5,66.8,76.2,77.5,Low,Low
+TATACONSUM,Tata Consumer Products Ltd.,Consumer Defensive,IN,72.5,65.2,75.8,76.5,Low,Low
+DABUR,Dabur India Ltd.,Consumer Defensive,IN,73.8,67.5,76.5,77.4,Low,Low
+PIDILITIND,Pidilite Industries Ltd.,Basic Materials,IN,71.5,64.8,74.2,75.5,Low,Low
+COLPAL,Colgate-Palmolive India Ltd.,Consumer Defensive,IN,74.5,67.5,77.2,78.8,Low,Low
+HAVELLS,Havells India Ltd.,Industrials,IN,71.8,64.5,74.5,76.4,Low,Low
+ABB,ABB India Ltd.,Industrials,IN,70.5,63.8,73.2,74.5,Low,Low
+TORNTPHARM,Torrent Pharmaceuticals Ltd.,Healthcare,IN,68.5,61.2,71.8,72.5,Medium,Low
+SIEMENS,Siemens Ltd.,Industrials,IN,72.5,65.8,74.5,77.2,Low,Low
+GODREJCP,Godrej Consumer Products Ltd.,Consumer Defensive,IN,72.8,65.5,75.2,77.7,Low,Low
+TRENT,Trent Ltd.,Consumer Cyclical,IN,69.5,62.5,72.5,73.5,Medium,Low
+DLF,DLF Ltd.,Real Estate,IN,61.5,54.8,64.5,65.2,Medium,Medium
+SRTRANSFIN,SRF Ltd.,Basic Materials,IN,64.5,58.2,66.8,68.5,Medium,Low
+VEDL,Vedanta Ltd.,Basic Materials,IN,45.5,38.5,48.5,49.5,High,High
+JSWENERGY,JSW Energy Ltd.,Utilities,IN,61.5,56.8,63.5,64.2,Medium,Low
+GAIL,GAIL India Ltd.,Energy,IN,59.5,53.8,61.8,62.9,Medium,Medium

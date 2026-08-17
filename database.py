@@ -189,9 +189,7 @@ def init_db():
     except Exception:
         pass
 
-    conn.close()
-
-    # Migration for news_alerts table
+    # Migration for news_alerts table (MUST be before conn.close())
     try:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS news_alerts (
@@ -202,9 +200,8 @@ def init_db():
                 article_count INTEGER DEFAULT 0,
                 alert_type TEXT DEFAULT 'strong_sentiment',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                user_id INTEGER DEFAULT 1 REFERENCES users(id),
-                is_read INTEGER DEFAULT 0,
-                UNIQUE(ticker, alert_type, date(created_at))
+                user_id INTEGER DEFAULT 1,
+                is_read INTEGER DEFAULT 0
             );
         ''')
         conn.commit()
@@ -482,16 +479,16 @@ def get_alerts_enabled_stocks():
     conn.close()
     return [r['ticker'] for r in rows]
 
-def save_news_alert(ticker, sentiment_label, avg_polarity, article_count):
+def save_news_alert(ticker, sentiment_label, avg_polarity, article_count, alert_type='strong_sentiment'):
     """Log a news sentiment alert to prevent duplicate notifications."""
     conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute('''
             INSERT OR IGNORE INTO news_alerts
-                (ticker, sentiment_label, avg_polarity, article_count, user_id)
-            VALUES (?, ?, ?, ?, 1)
-        ''', (ticker.upper(), sentiment_label, avg_polarity, article_count))
+                (ticker, sentiment_label, avg_polarity, article_count, alert_type, user_id)
+            VALUES (?, ?, ?, ?, ?, 1)
+        ''', (ticker.upper(), sentiment_label, avg_polarity, article_count, alert_type))
         conn.commit()
         return True
     except Exception:

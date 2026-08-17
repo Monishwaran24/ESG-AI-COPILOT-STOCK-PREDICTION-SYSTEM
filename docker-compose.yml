@@ -1,0 +1,49 @@
+# ============================================================
+# ESG Stock Prediction System - Docker Compose
+# ============================================================
+# Start with:    docker-compose up -d
+# Stop with:     docker-compose down
+# View logs:     docker-compose logs -f
+# Rebuild:       docker-compose up -d --build
+#
+# Environment variables are loaded from .env file automatically.
+# Data persists in Docker volumes (esg_data, esg_logs, esg_backups).
+# ============================================================
+
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: esg-predict
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      # Override DEBUG to False in production
+      - FLASK_DEBUG=False
+      # HSTS will be enabled automatically (not in DEBUG mode)
+    volumes:
+      # Persistent data volumes
+      - esg_data:/app/data
+      - esg_logs:/app/logs
+      - esg_backups:/app/backups
+      # Bind mount for database files (persist even after volume removal)
+      - ./esg_stock.db:/app/esg_stock.db
+      - ./users.db:/app/users.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/admin/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  esg_data:
+    name: esg_predict_data
+  esg_logs:
+    name: esg_predict_logs
+  esg_backups:
+    name: esg_predict_backups

@@ -8,6 +8,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -144,9 +146,9 @@
                                             </div>
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('prediction', ticker=stock.ticker) }}" class="btn-outline-esg btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                            <button class="btn-outline-esg btn-sm btn-analyze-inline" data-ticker="{{ stock.ticker }}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
                                                 Analyze <i class="bi bi-arrow-right ms-1"></i>
-                                            </a>
+                                            </button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -782,11 +784,122 @@
             }
             if (ticker) renderDashboardXAI(ticker);
         });
+
+        // Inline Prediction Modal Logic
+        var inlineModal = new bootstrap.Modal(document.getElementById('inlinePredictionModal'));
+        document.querySelectorAll('.btn-analyze-inline').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var ticker = this.getAttribute('data-ticker');
+                document.getElementById('modalTicker').textContent = ticker;
+                document.getElementById('modalLoading').style.display = 'block';
+                document.getElementById('modalContent').style.display = 'none';
+                document.getElementById('modalFullLink').href = '/predict?ticker=' + ticker;
+                inlineModal.show();
+
+                fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker: ticker })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.error) {
+                        alert('Error fetching prediction: ' + data.error);
+                        inlineModal.hide();
+                        return;
+                    }
+                    
+                    document.getElementById('modalLoading').style.display = 'none';
+                    document.getElementById('modalContent').style.display = 'block';
+                    
+                    var isPos = data.price_change_pct >= 0;
+                    document.getElementById('modalPrice').textContent = (data.currency_symbol || '$') + data.current_price.toFixed(2);
+                    document.getElementById('modalChange').textContent = (isPos ? '+' : '') + data.price_change_pct.toFixed(2) + '%';
+                    document.getElementById('modalChange').className = 'fs-6 ' + (isPos ? 'text-success' : 'text-danger');
+                    document.getElementById('modalCompany').textContent = data.company;
+                    
+                    var recEl = document.getElementById('modalRec');
+                    recEl.textContent = data.recommendation;
+                    recEl.className = 'recommendation-badge ' + data.recommendation.toLowerCase();
+                    
+                    var conf = data.confidence || 0;
+                    var confColor = conf >= 80 ? '#4caf50' : conf >= 60 ? '#ff9800' : '#f44336';
+                    document.getElementById('modalConfidence').textContent = conf.toFixed(1) + '%';
+                    document.getElementById('modalConfidence').style.color = confColor;
+                    
+                    var risk = data.risk_level || 'Medium';
+                    var riskEl = document.getElementById('modalRisk');
+                    riskEl.textContent = risk;
+                    riskEl.className = 'badge bg-' + (risk === 'Low' ? 'success' : risk === 'Medium' ? 'warning text-dark' : 'danger');
+                    
+                    if (data.esg_data) {
+                        document.getElementById('modalOverallEsg').textContent = (data.esg_data.esg_score || 0).toFixed(1);
+                        document.getElementById('modalEnv').textContent = (data.esg_data.environmental_score || 0).toFixed(1);
+                        document.getElementById('modalSoc').textContent = (data.esg_data.social_score || 0).toFixed(1);
+                        document.getElementById('modalGov').textContent = (data.esg_data.governance_score || 0).toFixed(1);
+                    }
+                })
+                .catch(function(err) {
+                    alert('Network error: ' + err.message);
+                    inlineModal.hide();
+                });
+            });
+        });
     })();
     </script>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Inline Prediction Modal -->
+    <div class="modal fade" id="inlinePredictionModal" tabindex="-1" aria-labelledby="inlinePredictionModalLabel" aria-hidden="true" data-bs-theme="dark">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: var(--bg-dark-secondary); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+          <div class="modal-header border-bottom-0 pb-0">
+            <h5 class="modal-title" id="inlinePredictionModalLabel"><i class="bi bi-graph-up-arrow text-esg me-2"></i> Quick Analysis: <span id="modalTicker"></span></h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="modalLoading" class="text-center py-4">
+                <div class="spinner-border text-esg mb-3" role="status"></div>
+                <p class="text-muted">Analyzing stock data with AI...</p>
+            </div>
+            <div id="modalContent" style="display: none;">
+                <div class="text-center mb-4">
+                    <h3 class="fw-bold mb-1"><span id="modalPrice"></span> <small class="fs-6" id="modalChange"></small></h3>
+                    <p class="text-muted small mb-0" id="modalCompany"></p>
+                </div>
+                <div class="d-flex justify-content-around align-items-center mb-4 p-3 rounded" style="background: rgba(0,0,0,0.2);">
+                    <div class="text-center">
+                        <small class="text-secondary d-block mb-1">Recommendation</small>
+                        <span id="modalRec" class="recommendation-badge"></span>
+                    </div>
+                    <div class="text-center">
+                        <small class="text-secondary d-block mb-1">Confidence</small>
+                        <h4 class="mb-0" id="modalConfidence"></h4>
+                    </div>
+                    <div class="text-center">
+                        <small class="text-secondary d-block mb-1">ESG Risk</small>
+                        <span id="modalRisk" class="badge"></span>
+                    </div>
+                </div>
+                <div class="row g-2 text-center small mb-3">
+                    <div class="col-3"><div class="p-2 border border-secondary rounded"><div class="text-muted" style="font-size:0.7rem;">ESG</div><strong id="modalOverallEsg" style="color: var(--esg-color);"></strong></div></div>
+                    <div class="col-3"><div class="p-2 border border-secondary rounded"><div class="text-muted" style="font-size:0.7rem;">ENV</div><strong id="modalEnv" style="color: var(--env-color);"></strong></div></div>
+                    <div class="col-3"><div class="p-2 border border-secondary rounded"><div class="text-muted" style="font-size:0.7rem;">SOC</div><strong id="modalSoc" style="color: var(--social-color);"></strong></div></div>
+                    <div class="col-3"><div class="p-2 border border-secondary rounded"><div class="text-muted" style="font-size:0.7rem;">GOV</div><strong id="modalGov" style="color: var(--gov-color);"></strong></div></div>
+                </div>
+                <div class="text-center mt-4">
+                    <a href="#" id="modalFullLink" class="btn-esg w-100"><i class="bi bi-file-bar-graph me-1"></i> View Detailed Report</a>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js')}}?v={{ static_version() }}"></script>
 </body>
 </html>

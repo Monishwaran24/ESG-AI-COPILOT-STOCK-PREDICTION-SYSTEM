@@ -1,0 +1,360 @@
+<!-- ============================================================
+     ESG Stock Prediction - Health & Status Dashboard v2.0
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="System Health Dashboard - Monitor email, backups, logging and system status">
+    <title>System Health - ESG Stock Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    {% include 'sidebar.html' %}
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="main-content">
+        <style>
+            .health-container { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+            .health-header { margin-bottom: 2rem; }
+            .health-header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, #4caf50, #81c784); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.5rem; }
+            .health-header p { color: var(--text-secondary); font-size: 0.95rem; }
+            .status-banner { padding: 1.25rem 1.5rem; border-radius: 12px; margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem; border: 1px solid; }
+            .status-banner.healthy { background: linear-gradient(135deg, rgba(76, 175, 80, 0.15), rgba(76, 175, 80, 0.05)); border-color: rgba(76, 175, 80, 0.3); }
+            .status-banner.degraded { background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 193, 7, 0.05)); border-color: rgba(255, 193, 7, 0.3); }
+            .status-banner .status-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+            .status-banner.healthy .status-icon { background: rgba(76, 175, 80, 0.2); color: #4caf50; }
+            .status-banner.degraded .status-icon { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+            .status-banner .status-text h3 { font-size: 1.1rem; margin: 0 0 0.2rem 0; color: var(--text-primary); }
+            .status-banner .status-text p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+            .status-banner .status-time { margin-left: auto; font-size: 0.8rem; color: var(--text-muted); text-align: right; }
+            .health-section { margin-bottom: 1.5rem; }
+            .health-section h2 { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+            .health-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.25rem; height: 100%; transition: all 0.3s ease; }
+            .health-card:hover { border-color: var(--esg-primary); box-shadow: 0 4px 20px rgba(27, 94, 32, 0.15); transform: translateY(-2px); }
+            .health-card .card-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 0.5rem; }
+            .health-card .card-value { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+            .health-card .card-value.green { color: #4caf50; }
+            .health-card .card-value.yellow { color: #ffc107; }
+            .health-card .card-value.red { color: #f44336; }
+            .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.5rem; }
+            .status-dot.green { background: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.5); }
+            .status-dot.yellow { background: #ffc107; box-shadow: 0 0 8px rgba(255, 193, 7, 0.5); }
+            .status-dot.red { background: #f44336; box-shadow: 0 0 8px rgba(244, 67, 54, 0.5); }
+            .backup-table { width: 100%; font-size: 0.85rem; }
+            .backup-table th { text-align: left; padding: 0.5rem; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--card-border); }
+            .backup-table td { padding: 0.5rem; color: var(--text-secondary); border-bottom: 1px solid rgba(255,255,255,0.05); }
+            .backup-table tr:last-child td { border-bottom: none; }
+            .event-feed { max-height: 300px; overflow-y: auto; }
+            .event-feed::-webkit-scrollbar { width: 4px; }
+            .event-feed::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 2px; }
+            .event-item { padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.8rem; }
+            .event-item:last-child { border-bottom: none; }
+            .event-item .event-time { color: var(--text-muted); font-family: monospace; white-space: nowrap; min-width: 80px; font-size: 0.75rem; }
+            .event-item .event-type { font-weight: 600; color: var(--text-primary); min-width: 100px; }
+            .event-item .event-context { color: var(--text-secondary); word-break: break-all; }
+            .feature-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+            .feature-item:last-child { border-bottom: none; }
+            .feature-item .feature-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+            .feature-item .feature-icon.active { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+            .feature-item .feature-icon.inactive { background: rgba(244, 67, 54, 0.15); color: #f44336; }
+            .feature-item .feature-name { flex: 1; font-size: 0.85rem; color: var(--text-primary); }
+            .feature-item .feature-status { font-size: 0.75rem; font-weight: 600; }
+            .feature-item .feature-status.active { color: #4caf50; }
+            .feature-item .feature-status.inactive { color: #f44336; }
+            .refresh-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-secondary); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 0.5rem; }
+            .refresh-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+            .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+            .refresh-btn i.spin { animation: spin 1s linear infinite; }
+            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            .log-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+            .log-bar:last-child { border-bottom: none; }
+            .log-bar .log-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); min-width: 100px; }
+            .log-bar .log-size-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+            .log-bar .log-size-bar .fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+            .log-bar .log-size-val { font-size: 0.8rem; color: var(--text-secondary); min-width: 60px; text-align: right; }
+            .loading-placeholder { padding: 3rem; text-align: center; color: var(--text-secondary); }
+            .loading-placeholder .spinner { width: 40px; height: 40px; border: 3px solid var(--card-border); border-top-color: var(--esg-primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+        </style>
+
+        <div class="health-container">
+            <div class="health-header">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h1><i class="bi bi-heart-pulse-fill me-2"></i> System Health</h1>
+                        <p>Monitor the status of all system components — email, backups, logging, and more.</p>
+                    </div>
+                    <button class="refresh-btn" id="refreshBtn" onclick="refreshStatus()">
+                        <i class="bi bi-arrow-clockwise" id="refreshIcon"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="loadingState" class="loading-placeholder">
+                <div class="spinner"></div>
+                <p>Loading system status...</p>
+            </div>
+
+            <div id="dashboardContent" style="display: none;">
+                <div id="statusBanner" class="status-banner">
+                    <div class="status-icon"><i class="bi bi-check-circle-fill"></i></div>
+                    <div class="status-text">
+                        <h3 id="bannerTitle">All Systems Healthy</h3>
+                        <p id="bannerSubtitle">All features are operational</p>
+                    </div>
+                    <div class="status-time">
+                        <div id="serverTime" style="font-family: monospace;"></div>
+                        <div id="uptimeDisplay" style="margin-top: 4px;"></div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div class="health-section">
+                            <h2><i class="bi bi-envelope-fill text-esg"></i> Email Service</h2>
+                            <div class="health-card" id="emailCard"><div class="loading-placeholder" style="padding:1rem;"><p>Loading...</p></div></div>
+                        </div>
+                        <div class="health-section">
+                            <h2><i class="bi bi-hdd-stack-fill text-esg"></i> System Info</h2>
+                            <div class="health-card" id="systemCard"><div class="loading-placeholder" style="padding:1rem;"><p>Loading...</p></div></div>
+                        </div>
+                        <div class="health-section">
+                            <h2><i class="bi bi-database-fill text-esg"></i> Database</h2>
+                            <div class="health-card" id="databaseCard"><div class="loading-placeholder" style="padding:1rem;"><p>Loading...</p></div></div>
+                        </div>
+                        <div class="health-section">
+                            <h2><i class="bi bi-grid-3x3-gap-fill text-esg"></i> Features</h2>
+                            <div class="health-card" id="featuresCard"><div class="loading-placeholder" style="padding:1rem;"><p>Loading...</p></div></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="health-section">
+                            <h2><i class="bi bi-cloud-arrow-up-fill text-esg"></i> Database Backup</h2>
+                            <div class="health-card" id="backupCard"><div class="loading-placeholder" style="padding:1rem;"><p>Loading...</p></div></div>
+                        </div>
+                        <div class="health-section">
+                            <h2><i class="bi bi-file-earmark-text-fill text-esg"></i> Logging</h2>
+                            <div class="health-card" id="loggingCard"><div class="loading-placeholder" style="padding:1rem;"><p>Loading...</p></div></div>
+                        </div>
+                        <div class="health-section">
+                            <h2><i class="bi bi-shield-exclamation-fill text-esg"></i> Recent Security Events</h2>
+                            <div class="health-card" id="eventsCard"><div class="loading-placeholder" style="padding:1rem;"><p>Loading...</p></div></div>
+                        </div>
+                        <div class="health-section">
+                            <h2><i class="bi bi-cpu-fill text-esg"></i> ML Model</h2>
+                            <div class="health-card" id="modelCard"><div class="loading-placeholder" style="padding:1rem;"><p>Loading...</p></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center py-4 mt-4">
+            <p class="text-muted small mb-0">
+                <i class="bi bi-cpu me-1"></i> ESG Stock Prediction System &copy; 2024
+                <span class="mx-2">|</span>
+                Health monitoring dashboard
+            </p>
+        </div>
+
+        <!-- Inline script MUST be inside .main-content for SPA router to find & re-execute on navigation -->
+        <script>
+    let autoRefreshInterval = null;
+
+    function refreshStatus() {
+        var btn = document.getElementById('refreshBtn');
+        var icon = document.getElementById('refreshIcon');
+        btn.disabled = true;
+        icon.classList.add('spin');
+
+        fetch('/api/status')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                renderStatus(data);
+                btn.disabled = false;
+                icon.classList.remove('spin');
+            })
+            .catch(function(err) {
+                console.error('Status fetch failed:', err);
+                btn.disabled = false;
+                icon.classList.remove('spin');
+                document.getElementById('loadingState').innerHTML =
+                    '<div style="color: #f44336; font-size: 2rem; margin-bottom: 1rem;"><i class="bi bi-exclamation-triangle-fill"></i></div>' +
+                    '<p style="color: #f44336;">Failed to load status: ' + err.message + '</p>' +
+                    '<button class="refresh-btn mt-3" onclick="refreshStatus()">Retry</button>';
+            });
+    }
+
+    function renderStatus(data) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = 'block';
+
+        document.getElementById('serverTime').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+        document.getElementById('uptimeDisplay').textContent = 'Uptime: ' + data.uptime;
+
+        var banner = document.getElementById('statusBanner');
+        var isHealthy = data.status === 'healthy';
+        banner.className = 'status-banner ' + (isHealthy ? 'healthy' : 'degraded');
+        banner.querySelector('.status-icon').innerHTML = isHealthy
+            ? '<i class="bi bi-check-circle-fill"></i>'
+            : '<i class="bi bi-exclamation-triangle-fill"></i>';
+        document.getElementById('bannerTitle').textContent = isHealthy
+            ? 'All Systems Operational'
+            : 'System Degraded';
+        document.getElementById('bannerSubtitle').textContent = isHealthy
+            ? 'All features are running normally'
+            : 'Some services need attention';
+
+        // Email
+        var email = data.email;
+        var emailHtml = '<div class="d-flex align-items-center gap-2 mb-3">' +
+            '<span class="status-dot ' + (email.configured ? 'green' : 'red') + '"></span>' +
+            '<span class="card-value ' + (email.configured ? 'green' : 'red') + '">' +
+            (email.configured ? 'Configured' : 'Not Configured') + '</span></div>';
+        if (email.configured) {
+            emailHtml += '<div style="font-size:0.85rem;color:var(--text-secondary);">' +
+                '<div class="mb-1"><strong>Server:</strong> ' + email.server + ':' + email.port + '</div>' +
+                '<div class="mb-1"><strong>Username:</strong> ' + email.username + '</div>' +
+                '<div><strong>From:</strong> ' + email.from_name + '</div></div>';
+        } else {
+            emailHtml += '<div style="font-size:0.85rem;color:var(--text-muted);">' +
+                '<p><i class="bi bi-info-circle me-1"></i> Set SMTP_USERNAME and SMTP_PASSWORD in .env</p></div>';
+        }
+        document.getElementById('emailCard').innerHTML = emailHtml;
+
+        // System
+        var sys = data.system;
+        document.getElementById('systemCard').innerHTML =
+            '<div style="font-size:0.85rem;color:var(--text-secondary);">' +
+            '<div class="mb-1"><strong>Python:</strong> ' + sys.python_version + '</div>' +
+            '<div class="mb-1"><strong>Platform:</strong> ' + sys.platform + '</div>' +
+            '<div class="mb-1"><strong>Hostname:</strong> ' + sys.hostname + '</div>' +
+            '<div><strong>Process ID:</strong> ' + sys.process_id + '</div></div>';
+
+        // Database
+        var db = data.database;
+        var dbHtml = '';
+        for (var name in db) {
+            var info = db[name];
+            dbHtml += '<div class="d-flex align-items-center justify-content-between py-1" style="border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.85rem;">' +
+                '<div><span class="status-dot ' + (info.exists ? 'green' : 'red') + '"></span>' +
+                '<strong style="color:var(--text-primary);">' + name + '</strong></div>' +
+                '<div style="color:var(--text-secondary);">' +
+                (info.exists ? (info.size_mb > 0 ? info.size_mb + ' MB' : '< 0.01 MB') : 'Not found') + '</div></div>';
+        }
+        document.getElementById('databaseCard').innerHTML = dbHtml;
+
+        // Features
+        var features = data.features;
+        var featuresHtml = '';
+        for (var featName in features) {
+            var active = features[featName];
+            var label = featName.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+            featuresHtml += '<div class="feature-item">' +
+                '<div class="feature-icon ' + (active ? 'active' : 'inactive') + '">' +
+                '<i class="bi ' + (active ? 'bi-check-lg' : 'bi-x-lg') + '"></i></div>' +
+                '<span class="feature-name">' + label + '</span>' +
+                '<span class="feature-status ' + (active ? 'active' : 'inactive') + '">' +
+                (active ? 'Active' : 'Inactive') + '</span></div>';
+        }
+        document.getElementById('featuresCard').innerHTML = featuresHtml;
+
+        // Backup
+        var backup = data.backup;
+        var backupHtml = '<div class="d-flex align-items-center gap-2 mb-3">' +
+            '<span class="status-dot ' + (backup.scheduler_running ? 'green' : (backup.enabled ? 'yellow' : 'red')) + '"></span>' +
+            '<span style="font-size:0.85rem;"><strong>' +
+            (backup.scheduler_running ? 'Scheduler Running' : (backup.enabled ? 'Not Running' : 'Disabled')) +
+            '</strong></span></div>' +
+            '<div style="font-size:0.85rem;color:var(--text-secondary);" class="mb-3">' +
+            '<span class="me-3"><strong>Interval:</strong> Every ' + backup.interval_hours + 'h</span>' +
+            '<span class="me-3"><strong>Retention:</strong> ' + backup.retention_days + ' days</span>' +
+            '<span><strong>Backups:</strong> ' + backup.backup_count + '</span></div>';
+        if (backup.backup_files.length > 0) {
+            backupHtml += '<div style="max-height:200px;overflow-y:auto;"><table class="backup-table"><thead><tr><th>File</th><th>Size</th><th>Date</th></tr></thead><tbody>';
+            backup.backup_files.forEach(function(f) {
+                var d = new Date(f.created);
+                var dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+                backupHtml += '<tr><td style="font-family:monospace;font-size:0.75rem;">' + f.name +
+                    '</td><td>' + f.size_mb + ' MB</td><td style="font-size:0.75rem;">' + dateStr + '</td></tr>';
+            });
+            backupHtml += '</tbody></table></div>';
+        } else {
+            backupHtml += '<p style="font-size:0.85rem;color:var(--text-muted);"><i class="bi bi-info-circle me-1"></i> No backups found yet.</p>';
+        }
+        document.getElementById('backupCard').innerHTML = backupHtml;
+
+        // Logging
+        var logging = data.logging;
+        var loggingHtml = '<div style="font-size:0.85rem;color:var(--text-secondary);" class="mb-3">' +
+            '<strong>Total:</strong> ' + logging.total_log_size_mb + ' MB across ' + logging.log_files.length + ' files</div>';
+        if (logging.log_files.length > 0) {
+            var maxSize = 0.001;
+            logging.log_files.forEach(function(f) { if (f.size_mb > maxSize) maxSize = f.size_mb; });
+            loggingHtml += '<div>';
+            logging.log_files.forEach(function(f) {
+                var pct = (f.size_mb / maxSize) * 100;
+                var color = f.name.indexOf('error') >= 0 ? '#f44336' : f.name.indexOf('security') >= 0 ? '#ffc107' : '#4caf50';
+                loggingHtml += '<div class="log-bar"><span class="log-name">' + f.name +
+                    '</span><div class="log-size-bar"><div class="fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
+                    '<span class="log-size-val">' + f.size_mb + ' MB</span></div>';
+            });
+            loggingHtml += '</div>';
+        } else {
+            loggingHtml += '<p style="font-size:0.85rem;color:var(--text-muted);">No log files found.</p>';
+        }
+        document.getElementById('loggingCard').innerHTML = loggingHtml;
+
+        // Security Events
+        var events = logging.recent_security_events;
+        var eventsHtml = '';
+        if (events.length > 0) {
+            eventsHtml = '<div class="event-feed">';
+            events.forEach(function(ev) {
+                var evType = ev.event.split('|')[0].trim();
+                var evCtx = ev.context || '';
+                eventsHtml += '<div class="event-item"><span class="event-time">' +
+                    (ev.timestamp.split(' ')[1] || ev.timestamp) + '</span>' +
+                    '<span class="event-type">' + evType + '</span>' +
+                    '<span class="event-context">' + evCtx + '</span></div>';
+            });
+            eventsHtml += '</div>';
+        } else {
+            eventsHtml = '<p style="font-size:0.85rem;color:var(--text-muted);">No recent security events.</p>';
+        }
+        document.getElementById('eventsCard').innerHTML = eventsHtml;
+
+        // Model
+        var model = data.model;
+        var accColor = model.accuracy >= 80 ? 'green' : model.accuracy >= 60 ? 'yellow' : 'red';
+        document.getElementById('modelCard').innerHTML =
+            '<div style="font-size:0.85rem;color:var(--text-secondary);">' +
+            '<div class="mb-2 d-flex align-items-center gap-2">' +
+            '<span class="status-dot ' + (model.loaded ? 'green' : 'yellow') + '"></span>' +
+            '<strong style="color:var(--text-primary);">' + (model.loaded ? model.name : 'Not Trained') + '</strong></div>' +
+            '<div class="mb-1"><strong>Accuracy:</strong> <span class="card-value ' + accColor + '">' + model.accuracy + '%</span></div>' +
+            '<div><strong>Trained:</strong> ' + (model.trained_on || 'N/A') + '</div></div>';
+    }
+
+    function startAutoRefresh() {
+        refreshStatus();
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(refreshStatus, 30000);
+    }
+
+    document.addEventListener('DOMContentLoaded', startAutoRefresh);
+    </script>
+
+    </div> <!-- END .main-content -->
+
+</body>
+</html>

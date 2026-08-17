@@ -16,11 +16,23 @@ ENCODER_PATH = os.path.join(MODEL_DIR, 'label_encoder.pkl')
 METADATA_PATH = os.path.join(MODEL_DIR, 'model_metadata.json')
 ESG_DATA_PATH = os.path.join(DATA_DIR, 'esg_data.csv')
 
-# Import Indian stock Kite API module
+# Import data source modules
+# PRIMARY: Finnhub API (for US stocks) — Indian stocks use IndianAPI exclusively
+# Fallback 1: Twelve Data API (for US stocks)
+# Fallback 2: yfinance (for US stocks)
+from model.finnhub_api import (
+    get_finnhub_stock_data, get_finnhub_quote, get_finnhub_company_profile,
+    get_finnhub_historical_data, is_finnhub_available as is_finnhub_stock_available
+)
 from model.kite_api import (
-    get_indian_stock_data, INDIAN_TICKERS_SET, is_indian_ticker,
-    get_nse_symbol, INDIAN_TICKERS,
+    get_indian_stock_data,
     is_twelvedata_available, _twelvedata_rest_request
+)
+from model.indian_api import (
+    is_indianapi_available, get_indianapi_historical_data,
+    get_indianapi_quote, get_indianapi_key_metrics,
+    get_indianapi_stock_data, get_indianapi_stock_data_with_financials,
+    is_indian_ticker, INDIAN_TICKERS_SET, INDIAN_TICKERS, get_nse_symbol as indianapi_get_nse_symbol
 )
 
 _model_cache = None
@@ -80,6 +92,10 @@ def get_market_suffix(ticker):
         return ' (NSE)'
     return ''
 
+def get_nse_symbol(ticker):
+    """Get NSE symbol for Indian tickers."""
+    return indianapi_get_nse_symbol(ticker)
+
 def load_model():
     global _model_cache, _scaler_cache, _encoder_cache, _metadata_cache
     if _model_cache is not None:
@@ -98,15 +114,19 @@ def load_model():
 def get_stock_data_twelvedata(ticker, period='1y'):
     """
     Fetch historical stock data from Twelve Data REST API.
-    Works for both US and Indian stocks. Much faster than yfinance.
+    Used ONLY for US stocks. Indian stocks use IndianAPI exclusively.
 
     Args:
-        ticker: Stock ticker (e.g., 'AAPL', 'MSFT', 'RELIANCE')
+        ticker: Stock ticker (e.g., 'AAPL', 'MSFT')
         period: Period string ('1mo', '3mo', '6mo', '1y', '2y')
 
     Returns:
         pandas DataFrame with OHLCV data, or None on failure
     """
+    # This function is ONLY for US stocks
+    if is_indian_ticker(ticker):
+        return None
+
     days_map = {
         '1mo': 30, '3mo': 90, '6mo': 180,
         '1y': 365, '2y': 730, '3y': 1095, '5y': 1825,
@@ -116,32 +136,15 @@ def get_stock_data_twelvedata(ticker, period='1y'):
     if not is_twelvedata_available():
         return None
 
-    nse_symbol = None
-    symbol = ticker
-    if is_indian_ticker(ticker):
-        nse_symbol = get_nse_symbol(ticker)
-        symbol = nse_symbol
-
-    # Try with exchange first
     params = {
-        'symbol': symbol,
+        'symbol': ticker,
         'interval': '1day',
         'outputsize': min(outputsize + 30, 5000),
     }
 
-    if is_indian_ticker(ticker):
-        params['exchange'] = 'NSE'
-
     data = _twelvedata_rest_request('time_series', params)
 
-    # If Indian stock fails with exchange, try without
-    if 'error' in data and is_indian_ticker(ticker):
-        params.pop('exchange', None)
-        data = _twelvedata_rest_request('time_series', params)
-
     if 'error' in data:
-        if data['error'] == 'restricted':
-            pass  # Will fallback to yfinance
         return None
 
     if 'values' not in data or not data['values']:
@@ -175,37 +178,41 @@ def get_stock_data_twelvedata(ticker, period='1y'):
 def get_stock_data_yfinance(ticker, period='6mo'):
     """
     Fallback: Fetch historical stock data via yfinance.
-    Works for all US and Indian (.NS suffix) stocks.
+    Used ONLY for US stocks. Indian stocks use IndianAPI exclusively.
     """
+    # This function is ONLY for US stocks
+    if is_indian_ticker(ticker):
+        return None
+
     try:
-        if is_indian_ticker(ticker):
-            nse_symbol = get_nse_symbol(ticker)
-            yf_ticker = f"{nse_symbol}.NS"
-            stock = yf.Ticker(yf_ticker)
-            data = stock.history(period=period)
-            if data.empty:
-                yf_ticker = f"{nse_symbol}.BO"
-                stock = yf.Ticker(yf_ticker)
-                data = stock.history(period=period)
-            if not data.empty:
-                return data
-        else:
-            yf_ticker = get_yfinance_ticker(ticker)
-            stock = yf.Ticker(yf_ticker)
-            data = stock.history(period=period)
-            if not data.empty:
-                return data
+        yf_ticker = get_yfinance_ticker(ticker)
+        stock = yf.Ticker(yf_ticker)
+        data = stock.history(period=period)
+        if not data.empty:
+            return data
         return None
     except Exception as e:
         print(f"[X] yfinance error for {ticker}: {e}")
         return None
 
 
+def _period_to_indianapi(period):
+    m = {'1mo': '1m', '3mo': '6m', '6mo': '6m', '1y': '1yr', '2y': '3yr', '3y': '3yr', '5y': '5yr'}
+    return m.get(period, '1yr')
+
+def get_stock_data_indianapi(ticker, period='6mo'):
+    if not is_indianapi_available():
+        return None
+    if not is_indian_ticker(ticker):
+        return None
+    ia_period = _period_to_indianapi(period)
+    return get_indianapi_historical_data(ticker, period=ia_period)
+
 def get_stock_data(ticker, period='6mo'):
     """
     Get historical stock data.
-    Primary: Twelve Data API (fast, REST-based)
-    Fallback: yfinance (works for all stocks)
+    - Indian stocks: ONLY IndianAPI (no fallback chain)
+    - US stocks: Finnhub API → Twelve Data API → yfinance
     Results are cached for 5 minutes to speed up chart rendering.
     """
     global _stock_data_cache
@@ -217,19 +224,37 @@ def get_stock_data(ticker, period='6mo'):
         if (datetime.now() - cached_entry['ts']).total_seconds() < 300:
             return cached_entry['df']
     
-    # Try Twelve Data first (much faster ~200ms vs ~800ms for yfinance)
     df = None
+    
+    # For Indian stocks: ONLY IndianAPI — no fallback to other providers
+    if is_indian_ticker(ticker):
+        if is_indianapi_available():
+            df = get_stock_data_indianapi(ticker, period=period)
+            if df is not None and len(df) > 20:
+                _stock_data_cache[cache_key] = {'df': df, 'ts': datetime.now()}
+                return df
+        # IndianAPI not available or returned no data — return None (no fallback)
+        return None
+
+    # For US stocks: Finnhub → Twelve Data → yfinance
+    # 1) Try Finnhub (primary for US, 60 req/min free tier)
+    if is_finnhub_stock_available():
+        df = get_finnhub_stock_data(ticker, period=period)
+        if df is not None and len(df) > 20:
+            _stock_data_cache[cache_key] = {'df': df, 'ts': datetime.now()}
+            return df
+
+    # 2) Fallback to Twelve Data API
     if is_twelvedata_available():
         df = get_stock_data_twelvedata(ticker, period=period)
         if df is not None and len(df) > 20:
             _stock_data_cache[cache_key] = {'df': df, 'ts': datetime.now()}
             return df
 
-    # Fallback to yfinance
+    # 3) Final fallback to yfinance
     df = get_stock_data_yfinance(ticker, period=period)
     if df is not None and len(df) > 2:
         _stock_data_cache[cache_key] = {'df': df, 'ts': datetime.now()}
-        # Limit cache size
         if len(_stock_data_cache) > 100:
             _stock_data_cache.clear()
     return df
@@ -395,9 +420,14 @@ def calculate_indicators(df):
         'historical_dates': historical_dates
     }
 
+_esg_cache_df = None
+
 def get_esg_data(ticker):
+    global _esg_cache_df
     try:
-        esg_df = pd.read_csv(ESG_DATA_PATH)
+        if _esg_cache_df is None:
+            _esg_cache_df = pd.read_csv(ESG_DATA_PATH)
+        esg_df = _esg_cache_df
         ticker_data = esg_df[esg_df['Ticker'].str.upper() == ticker.upper()]
         if not ticker_data.empty:
             row = ticker_data.iloc[0]
@@ -415,7 +445,7 @@ def get_esg_data(ticker):
         # Fallback for US stocks not in CSV
         ticker_info = yf.Ticker(get_yfinance_ticker(ticker))
         info = ticker_info.info if hasattr(ticker_info, 'info') else {}
-        country = 'IN' if is_indian_ticker(ticker) else 'US'
+        country = get_market(ticker)
         return {
             'esg_score': 50.0, 'environmental_score': 50.0,
             'social_score': 50.0, 'governance_score': 50.0,
@@ -425,7 +455,7 @@ def get_esg_data(ticker):
             'esg_risk': 'Medium', 'controversy': 'Low'
         }
     except FileNotFoundError:
-        country = 'IN' if is_indian_ticker(ticker) else 'US'
+        country = get_market(ticker)
         return {
             'esg_score': 50.0, 'environmental_score': 50.0,
             'social_score': 50.0, 'governance_score': 50.0,

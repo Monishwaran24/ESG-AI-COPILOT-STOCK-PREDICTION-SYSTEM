@@ -2095,6 +2095,83 @@ select.form-control {
     }
 }
 
+/* ============================================================
+   FUNDAMENTALS CARD (Company Profile & Financial Metrics)
+   ============================================================ */
+.fund-metric {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+    text-align: center;
+    transition: all var(--transition-speed) ease;
+    border: 1px solid transparent;
+}
+
+.fund-metric:hover {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: var(--border-color);
+    transform: translateY(-2px);
+}
+
+.fund-metric .fund-metric-val {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--esg-accent);
+    margin-bottom: 0.2rem;
+}
+
+.fund-metric .fund-metric-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.fund-metric .fund-metric-label-large {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--esg-accent);
+    word-break: break-all;
+}
+
+#fundamentalsContainer .card {
+    border-left: 3px solid var(--env-color);
+}
+
+#fundamentalsContainer .card-header {
+    background: rgba(0,0,0,0.25);
+    border-bottom: 1px solid var(--border-color);
+}
+
+#fundamentalsContainer .card-header i {
+    color: var(--env-color);
+}
+
+/* ============================================================
+   EXTENDED CARD CONTAINERS (Earnings, Guidance, Analyst)
+   ============================================================ */
+#metricExtContainer .card {
+    border-left: 3px solid var(--gov-color);
+}
+#metricExtContainer .card-header i {
+    color: var(--gov-color);
+}
+
+#earningsContainer .card {
+    border-left: 3px solid var(--hold-color);
+}
+#earningsContainer .card-header i {
+    color: var(--hold-color);
+}
+
+#analystContainer .card {
+    border-left: 3px solid var(--env-color);
+}
+#analystContainer .card-header i {
+    color: var(--env-color);
+}
+
 /* Pulse animation for active elements */
 @keyframes pulse {
     0%, 100% { transform: scale(1); }
@@ -2949,3 +3026,159 @@ select.form-control {
 [data-theme="light"] .profile-status-dot {
     border-color: #f8f9fa;
 }
+
+/* ============================================================
+   ALERTS PAGE — Dedicated News Alerts Center
+   ============================================================ */
+
+.alert-stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: var(--card-shadow);
+}
+.alert-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--shadow-color);
+    border-color: var(--esg-primary-light);
+}
+.alert-stat-card.total .alert-stat-icon { background: rgba(100,181,246,0.15); color: #64b5f6; }
+.alert-stat-card.positive .alert-stat-icon { background: rgba(76,175,80,0.15); color: #4caf50; }
+.alert-stat-card.negative .alert-stat-icon { background: rgba(244,67,54,0.15); color: #f44336; }
+.alert-stat-card.unread .alert-stat-icon { background: rgba(255,193,7,0.15); color: #ffc107; }
+.alert-stat-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+}
+.alert-stat-content .alert-stat-value { font-size: 1.6rem; font-weight: 800; line-height: 1.2; }
+.alert-stat-content .alert-stat-label {
+    font-size: 0.75rem; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Filter Buttons */
+.alert-filter-btn {
+    background: rgba(0,0,0,0.15);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem; border-radius: 8px;
+    font-size: 0.8rem; cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.alert-filter-btn:hover {
+    background: rgba(0,0,0,0.3);
+    color: var(--text-primary);
+    border-color: var(--esg-primary-light);
+}
+.alert-filter-btn.active {
+    background: rgba(76,175,80,0.15);
+    color: var(--esg-accent);
+    border-color: rgba(76,175,80,0.3);
+}
+
+/* Alert Cards */
+.alerts-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.alert-card {
+    display: flex; gap: 1rem; padding: 1.25rem;
+    border-radius: 14px; background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease; box-shadow: var(--card-shadow);
+}
+.alert-card:hover {
+    border-color: var(--esg-primary-light);
+    box-shadow: 0 6px 24px var(--shadow-color);
+    transform: translateY(-2px);
+}
+.alert-card-positive { border-left: 4px solid #4caf50; }
+.alert-card-negative { border-left: 4px solid #f44336; }
+.alert-card-left { flex-shrink: 0; }
+.alert-sentiment-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+}
+.alert-card-body { flex: 1; min-width: 0; }
+.alert-card-header {
+    display: flex; align-items: center; gap: 0.65rem;
+    margin-bottom: 0.6rem; flex-wrap: wrap;
+}
+.alert-ticker-badge {
+    font-weight: 700; font-size: 0.9rem;
+    padding: 0.2rem 0.7rem; background: rgba(0,0,0,0.15);
+    border-radius: 6px; display: inline-flex; align-items: center; gap: 0.3rem;
+}
+.alert-sentiment-pill {
+    font-size: 0.7rem; font-weight: 700;
+    padding: 0.15rem 0.6rem; border-radius: 50px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.alert-time {
+    margin-left: auto; font-size: 0.7rem;
+    color: var(--text-muted); flex-shrink: 0;
+}
+.alert-card-body-inner { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.alert-polarity-row { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 140px; }
+.alert-polarity-bar-wrap {
+    flex: 1; height: 6px; background: rgba(0,0,0,0.2);
+    border-radius: 3px; overflow: hidden; max-width: 120px;
+}
+.alert-polarity-bar { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.alert-polarity-value { font-weight: 700; font-size: 0.8rem; min-width: 50px; text-align: right; }
+.alert-article-count { font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; }
+.alert-headline-text {
+    margin-top: 0.5rem; padding: 0.5rem 0.7rem;
+    background: rgba(0,0,0,0.12); border-radius: 8px;
+    font-size: 0.82rem; line-height: 1.4; color: var(--text-secondary);
+    border-left: 2px solid var(--border-color);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.alert-card-actions {
+    margin-top: 0.6rem;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 0.5rem;
+}
+.alert-action-link {
+    font-size: 0.78rem; color: var(--esg-accent); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.3rem 0.75rem; border-radius: 6px;
+    transition: all 0.2s ease; background: rgba(76,175,80,0.08);
+    border: 1px solid rgba(76,175,80,0.2);
+}
+.alert-action-link:hover {
+    background: rgba(76,175,80,0.2); color: var(--esg-accent); text-decoration: none;
+}
+
+/* Enhanced Notification Dropdown Items */
+.notification-item {
+    display: flex; gap: 0.6rem; padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.2s; font-size: 0.78rem; cursor: pointer;
+}
+.notification-item:hover { background: rgba(76,175,80,0.06); }
+.notification-item-left { flex-shrink: 0; padding-top: 0.1rem; }
+.notification-item-body { flex: 1; min-width: 0; }
+.notification-item-header {
+    display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem;
+}
+.notification-item-headline {
+    font-size: 0.72rem; color: var(--text-secondary);
+    line-height: 1.3; margin-bottom: 0.15rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.notification-item-meta { display: flex; align-items: center; gap: 0.3rem; }
+.notification-item-time { margin-left: auto; font-size: 0.6rem; color: var(--text-muted); flex-shrink: 0; }
+.notification-view-all {
+    padding: 0.6rem 1rem; border-top: 1px solid var(--border-color); text-align: center;
+}
+.notification-view-all a { text-decoration: none; }
+
+/* Light theme overrides */
+[data-theme="light"] .alert-card { background: #ffffff; }
+[data-theme="light"] .alert-stat-card { background: #ffffff; }
