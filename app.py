@@ -59,12 +59,8 @@ except Exception as e:
 @app.context_processor
 def inject_globals():
     """Inject global template variables.
-    Wrapped in try/except so the app never crashes if ticker fetching fails."""
-    try:
-        ticker_prices = json.dumps(get_quick_ticker_prices())
-    except Exception as e:
-        print(f"[!] Warning: Could not fetch ticker prices: {e}")
-        ticker_prices = '{}'
+    Removed synchronous ticker fetching to drastically improve page load speed."""
+    ticker_prices = '{}'
     return dict(
         static_version=lambda: '10.0',
         initial_ticker_prices=ticker_prices
@@ -415,7 +411,7 @@ def performance():
                 'Ensemble (Voting)': {'accuracy':0.868,'precision':0.862,'recall':0.858,'f1_score':0.860,'cv_mean':0.845,'cv_std':0.022}
             },
             'feature_count': 25, 'features': [],
-            'label_classes': ['Buy','Hold','Sell'],
+            'label_classes': ['Buy','Sell'],
             'training_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         try:
@@ -1288,7 +1284,7 @@ def api_profile_activity():
             'icon': 'bi-graph-up-arrow',
             'color': '#4caf50',
             'title': f"Predicted {p.get('ticker', 'N/A')}",
-            'subtitle': f"{p.get('recommendation', 'Hold')} @ {p.get('confidence', 0):.0f}% confidence",
+            'subtitle': f"{p.get('recommendation', 'Sell')} @ {p.get('confidence', 0):.0f}% confidence",
             'time': p.get('created_at', 'Recently')
         })
     # Add simulated activities for variety
@@ -2161,14 +2157,10 @@ def generate_simulated_prediction(ticker):
         current_price = BASE_PRICE_MAP.get(ticker, round(random.uniform(50, 500), 2))
     
     esg_score = esg_data.get('esg_score', 50)
-    if esg_score >= 70:
+    if esg_score >= 60:
         recommendation = 'Buy'
-        confidence = round(random.uniform(65, 80), 2)
+        confidence = round(random.uniform(55, 80), 2)
         trend = 'Bullish'
-    elif esg_score >= 50:
-        recommendation = 'Hold'
-        confidence = round(random.uniform(55, 70), 2)
-        trend = 'Neutral'
     else:
         recommendation = 'Sell'
         confidence = round(random.uniform(50, 65), 2)
@@ -2184,7 +2176,6 @@ def generate_simulated_prediction(ticker):
         'recommendation': recommendation, 'confidence': confidence,
         'confidence_scores': {
             'Buy': round(confidence * 0.85 if recommendation == 'Buy' else (100 - confidence) * 0.3, 2),
-            'Hold': round(confidence * 0.75 if recommendation == 'Hold' else (100 - confidence) * 0.4, 2),
             'Sell': round(confidence * 0.85 if recommendation == 'Sell' else (100 - confidence) * 0.3, 2)
         },
         'trend': trend, 'risk_level': risk_level,

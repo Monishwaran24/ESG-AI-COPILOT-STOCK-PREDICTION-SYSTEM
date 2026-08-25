@@ -62,7 +62,9 @@ feature_cols = [
     'NATR_14','TRANGE_14',
     'HV_10','HV_20','HV_30',
     'SKEW_10','KURT_10','MAX_10','MIN_10',
-    'CORR_CLOSE_VOL','CORR_HIGH_LOW'
+    'CORR_CLOSE_VOL','CORR_HIGH_LOW',
+    # Macro Features (new)
+    'MACRO_SP500_Return', 'MACRO_VIX', 'MACRO_IRX'
 ]
 
 # Base features only (what the saved ML model was trained on - first 36 features)
@@ -96,56 +98,18 @@ def get_nse_symbol(ticker):
     """Get NSE symbol for Indian tickers."""
     return indianapi_get_nse_symbol(ticker)
 
-import torch
-import torch.nn as nn
-
-class PyTorchLSTM(torch.nn.Module):
-    def __init__(self, input_size, hidden_size=64, num_layers=2, num_classes=3, dropout=0.5):
-        super(PyTorchLSTM, self).__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        
-        # Bi-directional LSTM for stronger sequence modeling
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
-                            batch_first=True, dropout=dropout if num_layers > 1 else 0,
-                            bidirectional=True)
-        
-        # Since it's bidirectional, hidden_size is multiplied by 2
-        self.bn1 = nn.BatchNorm1d(hidden_size * 2)
-        self.fc1 = nn.Linear(hidden_size * 2, hidden_size)
-        self.bn2 = nn.BatchNorm1d(hidden_size)
-        self.relu = nn.LeakyReLU()
-        self.dropout = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(hidden_size, num_classes)
-
-    def forward(self, x):
-        out, _ = self.lstm(x)
-        out = out[:, -1, :]
-        out = self.bn1(out)
-        out = self.fc1(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-        out = self.dropout(out)
-        out = self.fc2(out)
-        return out
-
 def load_model():
     global _model_cache, _scaler_cache, _encoder_cache, _metadata_cache
     if _model_cache is not None:
         return _model_cache, _scaler_cache, _encoder_cache, _metadata_cache
     try:
-        import torch
+        MODEL_PATH_PKL = os.path.join(MODEL_DIR, 'model.pkl')
+        _model_cache = joblib.load(MODEL_PATH_PKL)
         _scaler_cache = joblib.load(SCALER_PATH)
         _encoder_cache = joblib.load(ENCODER_PATH)
         with open(METADATA_PATH, 'r') as f:
             _metadata_cache = json.load(f)
             
-        # Initialize model architecture and load weights
-        input_size = _metadata_cache.get('feature_count', 36)
-        _model_cache = PyTorchLSTM(input_size=input_size)
-        _model_cache.load_state_dict(torch.load(MODEL_PATH))
-        _model_cache.eval()
-        
         return _model_cache, _scaler_cache, _encoder_cache, _metadata_cache
     except Exception as e:
         print(f"[X] Error loading model: {e}")
@@ -299,6 +263,32 @@ def get_stock_data(ticker, period='6mo'):
             _stock_data_cache.clear()
     return df
 
+_macro_cache = {'ts': None, 'data': {}}
+def fetch_latest_macro_data():
+    global _macro_cache
+    if _macro_cache['ts'] and (datetime.now() - _macro_cache['ts']).total_seconds() < 3600:
+        return _macro_cache['data']
+    
+    macro_data = {'MACRO_SP500_Return': 0.0, 'MACRO_VIX': 15.0, 'MACRO_IRX': 4.0}
+    try:
+        sp500 = yf.Ticker("^GSPC").history(period='5d')
+        if not sp500.empty:
+            macro_data['MACRO_SP500_Return'] = float(sp500['Close'].pct_change().iloc[-1])
+            
+        vix = yf.Ticker("^VIX").history(period='1d')
+        if not vix.empty:
+            macro_data['MACRO_VIX'] = float(vix['Close'].iloc[-1])
+            
+        irx = yf.Ticker("^IRX").history(period='1d')
+        if not irx.empty:
+            macro_data['MACRO_IRX'] = float(irx['Close'].iloc[-1])
+            
+        _macro_cache = {'ts': datetime.now(), 'data': macro_data}
+    except Exception as e:
+        print(f"[X] Failed to fetch macro data: {e}")
+        
+    return macro_data
+
 def calculate_indicators(df):
     """Calculate ALL 67 features for prediction. MUST match train_model.py."""
     df = df.copy()
@@ -450,7 +440,12 @@ def calculate_indicators(df):
 
     latest = df.iloc[-1:]
     indicators_obj = {}
-    tech_cols = [f for f in feature_cols if f not in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score')]
+    
+    macro = fetch_latest_macro_data()
+    for k, v in macro.items():
+        indicators_obj[k] = v
+        
+    tech_cols = [f for f in feature_cols if f not in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score', 'MACRO_SP500_Return', 'MACRO_VIX', 'MACRO_IRX')]
     for col in tech_cols:
         if col in latest.columns:
             val = latest[col].values[0]
@@ -699,23 +694,20 @@ def _indicator_based_prediction(ticker, stock_info, esg_data):
     elif indicators.get('BB_Position', 0.5) > 0.8: bearish += 1
 
     total = bullish + bearish
-    if bullish >= bearish + 2:
+    if bullish >= bearish:
         predicted_class = 'Buy'
-        confidence = min(70 + min(bullish, 10) * 2.5, 95)
-    elif bearish >= bullish + 2:
-        predicted_class = 'Sell'
-        confidence = min(70 + min(bearish, 10) * 2.5, 95)
+        confidence = min(50 + min(bullish, 10) * 2.5, 95)
     else:
-        predicted_class = 'Hold'
-        confidence = min(55 + total * 3, 90)
+        predicted_class = 'Sell'
+        confidence = min(50 + min(bearish, 10) * 2.5, 95)
 
     # Build confidence scores for each class
     confidence_scores = {}
-    for cls in ['Buy', 'Hold', 'Sell']:
+    for cls in ['Buy', 'Sell']:
         if cls == predicted_class:
             confidence_scores[cls] = round(confidence, 2)
         else:
-            confidence_scores[cls] = round((100 - confidence) / 2, 2)
+            confidence_scores[cls] = round(100 - confidence, 2)
 
     trend = determine_trend(indicators, current_price)
     risk_level = determine_risk_level(indicators, esg_data)
@@ -758,45 +750,68 @@ def predict_stock(ticker):
                 indicators['Social_Score'] = esg_data['social_score']
                 indicators['Governance_Score'] = esg_data['governance_score']
 
-                # Get sequence length and features used from metadata
-                seq_len = metadata.get('sequence_length', 14)
-                model_features = metadata.get('features', BASE_FEATURES)
-                df_calc = result['df']
-                
-                if len(df_calc) >= seq_len:
-                    latest_seq = df_calc.iloc[-seq_len:]
-                    seq_features = []
-                    
-                    for i in range(seq_len):
-                        row = latest_seq.iloc[i]
-                        vec = []
-                        for col in model_features:
-                            if col in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score'):
-                                vec.append(indicators[col] / 100.0) # ESG scores are constant for the stock
-                            else:
-                                vec.append(float(row[col]) if pd.notna(row[col]) else 0.0)
-                        seq_features.append(vec)
+                # Fetch macro data
+                try:
+                    macro_tickers = ['^GSPC', '^VIX', '^IRX']
+                    macro_data = yf.download(macro_tickers, period='5d', progress=False)
+                    if 'Close' in macro_data.columns:
+                        macro_close = macro_data['Close']
+                    else:
+                        macro_close = macro_data
                         
-                    seq_array = np.array(seq_features)
-                    feature_scaled = scaler.transform(seq_array)
-                    feature_scaled = feature_scaled.reshape(1, seq_len, -1)
-                    
-                    import torch
-                    with torch.no_grad():
-                        tensor_scaled = torch.tensor(feature_scaled, dtype=torch.float32)
-                        prediction_logits = model(tensor_scaled)
-                        prediction_proba = torch.nn.functional.softmax(prediction_logits, dim=1).numpy()
-                        prediction = np.argmax(prediction_proba, axis=1)
-                else:
-                    raise ValueError(f"Not enough data for sequence length {seq_len}")
+                    if len(macro_close) > 0:
+                        last_macro = macro_close.iloc[-1]
+                        sp500_ret = macro_close['^GSPC'].pct_change().iloc[-1]
+                        indicators['MACRO_SP500_Return'] = float(sp500_ret) if not pd.isna(sp500_ret) else 0.0
+                        indicators['MACRO_VIX'] = float(last_macro['^VIX']) if not pd.isna(last_macro['^VIX']) else 20.0
+                        indicators['MACRO_IRX'] = float(last_macro['^IRX']) if not pd.isna(last_macro['^IRX']) else 4.0
+                    else:
+                        indicators['MACRO_SP500_Return'] = 0.0
+                        indicators['MACRO_VIX'] = 20.0
+                        indicators['MACRO_IRX'] = 4.0
+                except Exception as e:
+                    print(f"Error fetching macro data: {e}")
+                    indicators['MACRO_SP500_Return'] = 0.0
+                    indicators['MACRO_VIX'] = 20.0
+                    indicators['MACRO_IRX'] = 4.0
 
-                predicted_class = label_encoder.inverse_transform(prediction)[0]
+                model_features = metadata.get('features', BASE_FEATURES + ['MACRO_SP500_Return', 'MACRO_VIX', 'MACRO_IRX'])
+                
+                vec = []
+                for col in model_features:
+                    if col in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score'):
+                        vec.append(indicators.get(col, 50.0) / 100.0)
+                    else:
+                        vec.append(float(indicators.get(col, 0.0)))
+                        
+                feature_scaled = scaler.transform([vec])
+                
+                prediction_proba = model.predict_proba(feature_scaled)
+                
+                # Use optimal threshold if available in the model
+                if hasattr(model, 'optimal_threshold'):
+                    # Assuming class index 1 is 'Up' based on label_encoder.classes_
+                    up_idx = list(label_encoder.classes_).index('Up')
+                    prob_up = prediction_proba[0][up_idx]
+                    raw_pred_class = 'Up' if prob_up >= model.optimal_threshold else 'Down'
+                else:
+                    prediction = model.predict(feature_scaled)
+                    raw_pred_class = label_encoder.inverse_transform(prediction)[0]
+
+                # Convert binary Up/Down back to frontend-compatible Buy/Sell
+                if raw_pred_class == 'Up':
+                    predicted_class = 'Buy'
+                elif raw_pred_class == 'Down':
+                    predicted_class = 'Sell'
+                else:
+                    predicted_class = raw_pred_class
 
                 confidence_scores = {}
                 for i, cls_name in enumerate(label_encoder.classes_):
-                    prob = float(prediction_proba[0][i]) if i < prediction_proba.shape[1] else 0.33
-                    confidence_scores[str(cls_name)] = round(prob * 100, 2)
-
+                    prob = float(prediction_proba[0][i])
+                    frontend_cls = 'Buy' if cls_name == 'Up' else 'Sell' if cls_name == 'Down' else cls_name
+                    confidence_scores[frontend_cls] = round(prob * 100, 2)
+                
                 confidence = float(np.max(prediction_proba) * 100)
                 trend = determine_trend(indicators, current_price)
                 risk_level = determine_risk_level(indicators, esg_data)
@@ -816,21 +831,21 @@ def predict_stock(ticker):
                     'confidence_scores': confidence_scores,
                     'trend': trend,
                     'risk_level': risk_level,
-                    'model_used': metadata.get('best_model_name', 'Ensemble'),
+                    'model_used': metadata.get('best_model_name', 'XGBoost'),
                     'model_accuracy': round(metadata.get('accuracy', 0) * 100, 2),
                     'esg_data': esg_data,
                     'indicators': {
-                        'rsi': round(indicators['RSI_14'], 2),
-                        'macd': round(indicators['MACD'], 4),
-                        'sma_10': round(indicators['SMA_10'], 2),
-                        'sma_30': round(indicators['SMA_30'], 2),
-                        'bb_upper': round(current_price + (indicators['BB_Width'] * current_price / 2), 2),
-                        'bb_lower': round(current_price - (indicators['BB_Width'] * current_price / 2), 2),
-                        'volume_ratio': round(indicators['Volume_Ratio'], 2),
-                        'volatility': round(indicators['Volatility_10d'] * 100, 2),
-                        'price_change_1d': round(indicators['Price_Change_1d'] * 100, 2),
-                        'price_change_5d': round(indicators['Price_Change_5d'] * 100, 2),
-                        'price_change_20d': round(indicators['Price_Change_20d'] * 100, 2),
+                        'rsi': round(indicators.get('RSI_14', 50), 2),
+                        'macd': round(indicators.get('MACD', 0), 4),
+                        'sma_10': round(indicators.get('SMA_10', current_price), 2),
+                        'sma_30': round(indicators.get('SMA_30', current_price), 2),
+                        'bb_upper': round(current_price + (indicators.get('BB_Width', 0) * current_price / 2), 2),
+                        'bb_lower': round(current_price - (indicators.get('BB_Width', 0) * current_price / 2), 2),
+                        'volume_ratio': round(indicators.get('Volume_Ratio', 1), 2),
+                        'volatility': round(indicators.get('Volatility_10d', 0) * 100, 2),
+                        'price_change_1d': round(indicators.get('Price_Change_1d', 0) * 100, 2),
+                        'price_change_5d': round(indicators.get('Price_Change_5d', 0) * 100, 2),
+                        'price_change_20d': round(indicators.get('Price_Change_20d', 0) * 100, 2),
                         'atr': round(indicators.get('ATR_14', 0) * 100, 4),
                         'stoch_k': round(indicators.get('STOCH_K', 50), 2),
                         'stoch_d': round(indicators.get('STOCH_D', 50), 2),
@@ -847,6 +862,8 @@ def predict_stock(ticker):
                 response['ai_explanation'] = ai_explanation
                 return response
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"[X] ML model prediction failed for {ticker}: {e}. Falling back to indicator-based.")
             # Fall through to indicator-based prediction
 

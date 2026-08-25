@@ -39,8 +39,8 @@
             <!-- Left Column -->
             <div class="col-lg-4">
                 <!-- User Avatar & Info -->
-                <div class="card fade-in profile-card">
-                    <div class="card-body text-center">
+                <div class="card glass-card fade-in profile-card">
+                    <div class="card glass-card-body text-center">
                         <div class="profile-avatar-wrapper">
                             <div class="profile-avatar">
                                 {{ (session.get('full_name', 'U')[:1]).upper() if session.get('full_name') else 'U' }}
@@ -63,11 +63,11 @@
                 </div>
 
                 <!-- Activity Stats Summary -->
-                <div class="card mt-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mt-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-activity"></i> Activity Summary</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <div id="statsGrid" class="row g-2">
                             <div class="col-6">
                                 <div class="stat-item">
@@ -110,12 +110,12 @@
                 </div>
 
                 <!-- Achievements -->
-                <div class="card mt-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mt-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-trophy-fill text-warning"></i> Achievements</span>
                         <span class="badge bg-warning" id="achieveCount">0/0</span>
                     </div>
-                    <div class="card-body" style="max-height:320px;overflow-y:auto;">
+                    <div class="card glass-card-body" style="max-height:320px;overflow-y:auto;">
                         <div id="achievementsList">
                             <div class="text-center py-4">
                                 <div class="spinner-border spinner-border-sm text-esg"></div>
@@ -129,12 +129,12 @@
             <!-- Right Column -->
             <div class="col-lg-8">
                 <!-- AI Investment Tip -->
-                <div class="card mb-4 fade-in profile-card" id="aiTipCard">
-                    <div class="card-header">
+                <div class="card glass-card mb-4 fade-in profile-card" id="aiTipCard">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-robot text-info"></i> AI Personalized Insight</span>
                         <span class="badge bg-info" style="font-size:0.6rem;">Today</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <div id="aiTipContent" class="d-flex align-items-start gap-3">
                             <div class="spinner-border spinner-border-sm text-esg flex-shrink-0 mt-1"></div>
                             <div>
@@ -145,14 +145,14 @@
                 </div>
 
                 <!-- Activity Timeline -->
-                <div class="card mb-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mb-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-clock-history"></i> Recent Activity</span>
                         <button class="btn btn-sm btn-outline-esg" onclick="loadActivity()" title="Refresh">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
-                    <div class="card-body" style="max-height:320px;overflow-y:auto;">
+                    <div class="card glass-card-body" style="max-height:320px;overflow-y:auto;">
                         <div id="activityTimeline">
                             <div class="text-center py-4">
                                 <div class="spinner-border spinner-border-sm text-esg"></div>
@@ -163,9 +163,9 @@
                 </div>
 
                 <!-- Profile Settings -->
-                <div class="card mb-4 fade-in profile-card">
-                    <div class="card-header"><span><i class="bi bi-gear"></i> Profile Settings</span></div>
-                    <div class="card-body">
+                <div class="card glass-card mb-4 fade-in profile-card">
+                    <div class="card glass-card-header"><span><i class="bi bi-gear"></i> Profile Settings</span></div>
+                    <div class="card glass-card-body">
                         <form id="profileForm">
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -191,12 +191,12 @@
                 </div>
 
                 <!-- Notification Preferences -->
-                <div class="card mb-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mb-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-bell-fill text-warning"></i> Notification Preferences</span>
                         <span class="badge bg-secondary" id="notifCount">0 enabled</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <div id="notifPrefs">
                             <div class="text-center py-3">
                                 <div class="spinner-border spinner-border-sm text-esg"></div>
@@ -206,12 +206,12 @@
                 </div>
 
                 <!-- Security & Account Health -->
-                <div class="card mb-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mb-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-shield-check text-success"></i> Security & Account Health</span>
                         <span class="badge" id="securityScoreBadge">--</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <div id="securityInfo">
                             <div class="text-center py-3">
                                 <div class="spinner-border spinner-border-sm text-esg"></div>
@@ -221,14 +221,14 @@
                 </div>
 
                 <!-- Two-Factor Authentication -->
-                <div class="card mb-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mb-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-shield-lock"></i> Two-Factor Authentication</span>
                         <span class="badge bg-{{ 'success' if session.get('2fa_enabled') else 'secondary' }}" id="2faStatus">
                             {{ 'Enabled' if session.get('2fa_enabled') else 'Disabled' }}
                         </span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         {% if not session.get('2fa_enabled') %}
                         <p class="text-secondary">Enhance your account security with TOTP-based two-factor authentication.</p>
                         <button class="btn-esg" onclick="setup2FA()"><i class="bi bi-qr-code"></i> Setup 2FA</button>
@@ -256,12 +256,12 @@
                 </div>
 
                 <!-- API Keys -->
-                <div class="card mb-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mb-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-key-fill text-info"></i> API Keys</span>
                         <span class="badge bg-info" id="apiKeyCount">0</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <p class="text-secondary small">Generate API keys to access ESG data programmatically.</p>
                         <button class="btn-esg" onclick="generateAPIKey()"><i class="bi bi-plus-circle"></i> Generate New Key</button>
                         <div id="apiKeyDisplay" class="mt-3" style="display:none;">
@@ -279,12 +279,12 @@
                 </div>
 
                 <!-- Watchlist Quick View -->
-                <div class="card mb-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mb-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-star-fill text-warning"></i> Watchlist Summary</span>
                         <span class="badge bg-warning" id="watchlistCount">0</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <div id="watchlistSummary">
                             <div class="text-center py-3">
                                 <div class="spinner-border spinner-border-sm text-esg"></div>
@@ -294,9 +294,9 @@
                 </div>
 
                 <!-- Preferences -->
-                <div class="card fade-in profile-card">
-                    <div class="card-header"><span><i class="bi bi-palette"></i> Preferences</span></div>
-                    <div class="card-body">
+                <div class="card glass-card fade-in profile-card">
+                    <div class="card glass-card-header"><span><i class="bi bi-palette"></i> Preferences</span></div>
+                    <div class="card glass-card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Theme</label>
@@ -321,11 +321,11 @@
                 </div>
 
                 <!-- Export Data -->
-                <div class="card mt-4 fade-in profile-card">
-                    <div class="card-header">
+                <div class="card glass-card mt-4 fade-in profile-card">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-download text-primary"></i> Export Data</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <p class="text-secondary small">Download your prediction history and account data for analysis.</p>
                         <div class="row g-2">
                             <div class="col-md-6">
@@ -821,4 +821,4 @@
     <script>if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(r){r.unregister()})}).catch(function(){});</script>
     <script src="{{ url_for('static', filename='js/main.js')}}?v={{ static_version() }}"></script>
 </body>
-</html>
+</html>

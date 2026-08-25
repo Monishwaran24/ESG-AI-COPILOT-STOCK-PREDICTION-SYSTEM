@@ -1,48 +1,27 @@
 {
-  "model_type": "XGBClassifier",
-  "best_model_name": "XGBoost",
-  "accuracy": 0.7031114536171852,
-  "precision": 0.70347425103137,
-  "recall": 0.7031114536171852,
-  "f1_score": 0.7032630323579524,
-  "cv_mean": 0.0,
+  "model_type": "Tree_Binary",
+  "best_model_name": "LightGBM",
+  "accuracy": 0.6170641900607425,
+  "precision": 0.6187549620195283,
+  "recall": 0.6170641900607425,
+  "f1_score": 0.6177571590341115,
+  "cv_mean": 0.6170641900607425,
   "cv_std": 0.0,
   "confusion_matrix": [
     [
-      2627,
-      654,
-      284
+      10739,
+      7828
     ],
     [
-      620,
-      2336,
-      639
-    ],
-    [
-      256,
-      629,
-      2336
+      8500,
+      15572
     ]
   ],
-  "all_results": {
-    "XGBoost": {
-      "accuracy": 0.7031114536171852,
-      "precision": 0.70347425103137,
-      "recall": 0.7031114536171852,
-      "f1_score": 0.7032630323579524,
-      "cv_mean": 0.0,
-      "cv_std": 0.0
-    },
-    "LightGBM": {
-      "accuracy": 0.6590887197765148,
-      "precision": 0.6600451064771038,
-      "recall": 0.6590887197765148,
-      "f1_score": 0.6584328111862652,
-      "cv_mean": 0.0,
-      "cv_std": 0.0
-    }
-  },
-  "feature_count": 36,
+  "all_results": {},
+  "base_models": [
+    "LightGBM"
+  ],
+  "feature_count": 70,
   "features": [
     "SMA_10",
     "SMA_30",
@@ -79,16 +58,51 @@
     "ESG_Score",
     "Environmental_Score",
     "Social_Score",
-    "Governance_Score"
+    "Governance_Score",
+    "SMA_50",
+    "EMA_50",
+    "SMA_200",
+    "EMA_200",
+    "TRIX",
+    "ROC_10",
+    "ROC_20",
+    "PPO",
+    "ADX",
+    "ADXR",
+    "CMO",
+    "ULT_OSC",
+    "AROON_UP",
+    "AROON_DOWN",
+    "CHAIKIN_MF",
+    "OBV_Change",
+    "KAMA_10",
+    "KAMA_DIVERGENCE",
+    "MIDPOINT_10",
+    "MIDPRICE_10",
+    "NATR_14",
+    "TRANGE_14",
+    "HV_10",
+    "HV_20",
+    "HV_30",
+    "SKEW_10",
+    "KURT_10",
+    "MAX_10",
+    "MIN_10",
+    "CORR_CLOSE_VOL",
+    "CORR_HIGH_LOW",
+    "MACRO_SP500_Return",
+    "MACRO_VIX",
+    "MACRO_IRX"
   ],
-  "training_date": "2026-07-26 19:15:37",
+  "training_date": "2026-08-25 19:47:05",
   "label_classes": [
-    "Buy",
-    "Hold",
-    "Sell"
+    "Down",
+    "Up"
   ],
-  "training_source": "REAL_MARKET_DATA",
+  "training_source": "REAL_MARKET_DATA_5YR_TIMESERIES",
   "forward_window_days": 20,
-  "buy_threshold": 0.03,
-  "sell_threshold": -0.03
+  "correlation_threshold": 0.95,
+  "hyperparameter_tuning": false,
+  "validation": "CHRONOLOGICAL_SPLIT",
+  "data_leakage_free": true
 }

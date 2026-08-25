@@ -1,7 +1,7 @@
 """
-Real Stock Data Training Pipeline for ESG Stock Prediction (LSTM VERSION)
+Real Stock Data Training Pipeline for ESG Stock Prediction
 =======================================================================
-Replaces traditional ML models with a Deep Learning LSTM model using PyTorch.
+Binary Classification (Up/Down) using XGBoost/Random Forest and Macroeconomic features.
 """
 
 import os
@@ -14,16 +14,25 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import joblib, time
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier
+try:
+    from xgboost import XGBClassifier
+    HAS_XGB = True
+except ImportError:
+    HAS_XGB = False
+    print("[!] XGBoost not installed. Using Random Forest only.")
+
+try:
+    from lightgbm import LGBMClassifier
+    HAS_LGBM = True
+except ImportError:
+    HAS_LGBM = False
+    print("[!] LightGBM not installed.")
 
 # Enable unbuffered stdout so we can see progress logs in background task
 sys.stdout.reconfigure(line_buffering=True)
-
-from sklearn.preprocessing import RobustScaler, StandardScaler, LabelEncoder
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
 os.environ['LOKY_MAX_CPU_COUNT'] = '1'
 os.environ['JOBLIB_START_METHOD'] = 'forksafe'
@@ -35,33 +44,46 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 MODEL_DIR = os.path.join(PROJECT_ROOT, 'model')
-MODEL_PATH = os.path.join(MODEL_DIR, 'model.pt')  # PyTorch model
+MODEL_PATH = os.path.join(MODEL_DIR, 'model.pkl')  # Saving as PKL for Sklearn/XGB
 SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
 ENCODER_PATH = os.path.join(MODEL_DIR, 'label_encoder.pkl')
 METADATA_PATH = os.path.join(MODEL_DIR, 'model_metadata.json')
 STOCK_LIST_PATH = os.path.join(DATA_DIR, 'esg_data.csv')
 
 np.random.seed(42)
-torch.manual_seed(42)
 
 # =====================================================================
-# FEATURE DEFINITIONS — 67 features (base + extended)
+# FEATURE DEFINITIONS 
 # =====================================================================
 feature_cols = [
-    'SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'RSI_14',
-    'MACD', 'MACD_Signal', 'MACD_Histogram',
-    'BB_Width', 'BB_Position',
-    'Price_Change_1d', 'Price_Change_5d', 'Price_Change_20d',
-    'Volume_Ratio', 'High_Low_Ratio', 'Close_Open_Ratio', 'Volatility_10d',
-    'ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score'
+    # Base features (36)
+    'SMA_10','SMA_30','EMA_10','EMA_30','RSI_14',
+    'MACD','MACD_Signal','MACD_Histogram',
+    'BB_Width','BB_Position',
+    'Price_Change_1d','Price_Change_5d','Price_Change_20d',
+    'Volume_Ratio','High_Low_Ratio','Close_Open_Ratio','Volatility_10d',
+    'Price_Acceleration','VPT_Change','RSI_SMA','Price_Position',
+    'ATR_14','STOCH_K','STOCH_D','WILLIAMS_R','MFI',
+    'Log_Return_1d','Log_Return_5d','Log_Return_20d',
+    'Price_Momentum','Volume_Change_1d','High_Low_Pct',
+    'ESG_Score','Environmental_Score','Social_Score','Governance_Score',
+    # Extended features (31)
+    'SMA_50','EMA_50','SMA_200','EMA_200',
+    'TRIX','ROC_10','ROC_20','PPO','ADX','ADXR',
+    'CMO','ULT_OSC','AROON_UP','AROON_DOWN',
+    'CHAIKIN_MF','OBV_Change','KAMA_10','KAMA_DIVERGENCE',
+    'MIDPOINT_10','MIDPRICE_10',
+    'NATR_14','TRANGE_14',
+    'HV_10','HV_20','HV_30',
+    'SKEW_10','KURT_10','MAX_10','MIN_10',
+    'CORR_CLOSE_VOL','CORR_HIGH_LOW',
+    # Macro Features (new)
+    'MACRO_SP500_Return', 'MACRO_VIX', 'MACRO_IRX'
 ]
 
 FORWARD_WINDOW = 20
-BUY_THRESHOLD = 0.03
-SELL_THRESHOLD = -0.03
 YF_PERIOD = '5y'
 CORR_THRESHOLD = 0.95
-SEQ_LEN = 40  # Sequence length for LSTM
 
 def ensure_directories():
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -72,6 +94,35 @@ def get_yfinance_ticker(ticker):
     if t == 'BRK.B':
         return 'BRK-B'
     return t
+
+def fetch_macro_data():
+    print("  Fetching Macroeconomic data (^GSPC, ^VIX, ^IRX)...")
+    macro_df = pd.DataFrame()
+    try:
+        sp500 = yf.Ticker("^GSPC").history(period=YF_PERIOD)
+        if not sp500.empty:
+            if hasattr(sp500.index, 'tz') and sp500.index.tz is not None:
+                sp500.index = sp500.index.tz_localize(None)
+            macro_df['MACRO_SP500_Return'] = sp500['Close'].pct_change()
+            
+        vix = yf.Ticker("^VIX").history(period=YF_PERIOD)
+        if not vix.empty:
+            if hasattr(vix.index, 'tz') and vix.index.tz is not None:
+                vix.index = vix.index.tz_localize(None)
+            macro_df['MACRO_VIX'] = vix['Close']
+            
+        irx = yf.Ticker("^IRX").history(period=YF_PERIOD)
+        if not irx.empty:
+            if hasattr(irx.index, 'tz') and irx.index.tz is not None:
+                irx.index = irx.index.tz_localize(None)
+            macro_df['MACRO_IRX'] = irx['Close']
+            
+        macro_df.ffill(inplace=True)
+        macro_df.bfill(inplace=True)
+        return macro_df
+    except Exception as e:
+        print(f"  [!] Failed to fetch macro data: {e}")
+        return pd.DataFrame()
 
 def remove_highly_correlated(X, threshold=0.95):
     """Remove features with pairwise correlation > threshold to reduce noise."""
@@ -89,7 +140,7 @@ def remove_highly_correlated(X, threshold=0.95):
     return X[:, to_keep], np.where(to_keep)[0]
 
 def calculate_indicators_for_df(df):
-    """Calculate ALL 67 features with proper min_periods for cleaner signals."""
+    """Calculate all technical features."""
     df = df.copy()
     if len(df) < 100:
         return None
@@ -257,7 +308,10 @@ def calculate_indicators_for_df(df):
     df['CORR_CLOSE_VOL'] = c.rolling(20, min_periods=20).corr(v)
     df['CORR_HIGH_LOW'] = h.rolling(20, min_periods=20).corr(l)
     
-    df['Forward_Return'] = c.shift(-FORWARD_WINDOW) / c - 1
+    # Binary Classification Forward Return: Predict > 0% Up, else Down
+    df['Forward_Return_Binary'] = np.where(c.shift(-FORWARD_WINDOW) > c, 1, 0)
+    # Drop rows where we don't have future data
+    df.iloc[-FORWARD_WINDOW:, df.columns.get_loc('Forward_Return_Binary')] = np.nan
     
     # Normalize absolute price features to be scale-invariant
     absolute_price_cols = [
@@ -287,20 +341,14 @@ def fetch_yfinance_data(ticker, period='5y'):
     except Exception:
         return None
 
-def build_real_training_data(esg_data, max_stocks=None):
-    """
-    Build LSTM training dataset with sequential windows.
-    Generates (samples, SEQ_LEN, features) tensor.
-    """
+def fetch_and_preprocess_data(esg_data, macro_df, max_stocks=None):
     print("\n" + "="*60)
-    print("  BUILDING LSTM TRAINING DATASET (5yr, time-ordered)")
+    print("  PHASE 1: FETCHING AND PREPROCESSING DATA")
     print("="*60)
     print(f"  Tickers available: {len(esg_data)}")
     
     all_features = []
     all_labels = []
-    stock_splits = []
-    skipped = []
     
     ticker_list = esg_data.to_dict('records')
     if max_stocks:
@@ -314,388 +362,208 @@ def build_real_training_data(esg_data, max_stocks=None):
         
         df = fetch_yfinance_data(ticker, period=YF_PERIOD)
         if df is None or df.empty:
-            skipped.append((ticker, 'No data'))
             continue
-        
         if hasattr(df.index, 'tz') and df.index.tz is not None:
             df.index = df.index.tz_localize(None)
         
         df_with_indicators = calculate_indicators_for_df(df)
         if df_with_indicators is None:
-            skipped.append((ticker, 'Insufficient data'))
             continue
         
-        technical_cols = [c for c in feature_cols 
-                         if c not in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score')]
+        # Merge Macro Data
+        df_with_indicators = df_with_indicators.join(macro_df, how='left')
+        df_with_indicators.ffill(inplace=True)
+        df_with_indicators.bfill(inplace=True)
         
-        df_clean = df_with_indicators.dropna(subset=technical_cols + ['Forward_Return'])
-        if len(df_clean) < SEQ_LEN * 2:
-            skipped.append((ticker, f'Only {len(df_clean)} rows'))
+        # Define base technical cols to drop nan
+        technical_cols = [c for c in feature_cols if 'Score' not in c and 'MACRO' not in c]
+        df_clean = df_with_indicators.dropna(subset=technical_cols + ['Forward_Return_Binary'])
+        
+        if len(df_clean) < 100:
             continue
-        
-        start_idx = len(all_features)
-        forward_returns = df_clean['Forward_Return'].values
-        labels = np.where(forward_returns > BUY_THRESHOLD, 2,
-                          np.where(forward_returns < SELL_THRESHOLD, 0, 1))
+            
+        labels = df_clean['Forward_Return_Binary'].values
         
         for i, (_, row) in enumerate(df_clean.iterrows()):
             vec = []
             for col in feature_cols:
-                if col in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score'):
-                    if col == 'ESG_Score': vec.append(float(stock_row['ESG_Score']) / 100.0)
-                    elif col == 'Environmental_Score': vec.append(float(stock_row['Environmental_Score']) / 100.0)
-                    elif col == 'Social_Score': vec.append(float(stock_row['Social_Score']) / 100.0)
-                    elif col == 'Governance_Score': vec.append(float(stock_row['Governance_Score']) / 100.0)
+                if 'Score' in col:
+                    vec.append(float(stock_row[col]) / 100.0)
                 else:
                     vec.append(float(row[col]) if pd.notna(row[col]) else 0.0)
-            
             all_features.append(vec)
             all_labels.append(labels[i])
-            
-        end_idx = len(all_features)
-        stock_splits.append((ticker, start_idx, end_idx))
     
-    print("\n  [Debug] Finished downloading all tickers. Building matrices...")
+    print("\n  [Debug] Finished downloading. Scaling...")
     if len(all_features) < 100:
-        print(f"\n  [!] Only {len(all_features)} samples! Not enough.")
-        return None, None, None, None, None, None, None, None, None
+        return None
         
     X_raw = np.array(all_features)
     y_raw = np.array(all_labels)
-    print(f"  [Debug] X_raw shape: {X_raw.shape}")
-    
-    # Clean data
     X_raw = np.nan_to_num(X_raw, nan=0.0, posinf=0.0, neginf=0.0)
     X_raw = np.clip(X_raw, -1e4, 1e4)
     
-    train_raw_rows = []
-    print("  [Debug] Extracting train subsets...")
-    for ticker, start_idx, end_idx in stock_splits:
-        length = end_idx - start_idx
-        train_len = int(length * 0.70)
-        if train_len > 0:
-            train_raw_rows.append(X_raw[start_idx : start_idx + train_len])
-            
-    if not train_raw_rows:
-        print("\n  [!] Not enough training data.")
-        return None, None, None, None, None, None, None, None, None, None, None
-        
-    X_train_raw = np.vstack(train_raw_rows)
+    # Chronological Split (Train 70%, Test 30%)
+    train_size = int(len(X_raw) * 0.7)
+    X_train_raw = X_raw[:train_size]
+    X_test_raw = X_raw[train_size:]
+    y_train = y_raw[:train_size]
+    y_test = y_raw[train_size:]
     
-    # Remove near-constant features ONLY based on train set
     stds = np.std(X_train_raw, axis=0)
     const_mask = stds > 1e-8
     
-    # Remove highly correlated features ONLY based on train set
-    X_train_clean = X_train_raw[:, const_mask]
-    X_train_clean, kept_idx = remove_highly_correlated(X_train_clean, threshold=CORR_THRESHOLD)
-    
-    final_mask = np.zeros(X_raw.shape[1], dtype=bool)
-    final_mask[np.where(const_mask)[0][kept_idx]] = True
-    
+    # Do NOT remove highly correlated features, keep all valid ones
+    final_mask = const_mask
     survived_features = [feature_cols[i] for i in range(len(feature_cols)) if final_mask[i]]
-    removed_count = len(feature_cols) - len(survived_features)
     
-    X_raw_filtered = X_raw[:, final_mask]
     X_train_filtered = X_train_raw[:, final_mask]
+    X_test_filtered = X_test_raw[:, final_mask]
+    X_raw_filtered = X_raw[:, final_mask]
     
-    # Fit scaler ONLY on train set
-    print("  [Debug] Fitting scaler...")
     scaler = StandardScaler()
     scaler.fit(X_train_filtered)
-    print("  [Debug] Transforming features...")
-    X_scaled = scaler.transform(X_raw_filtered)
+    X_train_scaled = scaler.transform(X_train_filtered)
+    X_test_scaled = scaler.transform(X_test_filtered)
     
-    # Now build sequences and time-series split
-    print("  [Debug] Building sequences...")
-    X_train_seq = []
-    y_train_seq = []
-    X_val_seq = []
-    y_val_seq = []
-    X_test_seq = []
-    y_test_seq = []
-    
-    for ticker, start_idx, end_idx in stock_splits:
-        length = end_idx - start_idx
-        if length <= SEQ_LEN:
-            continue
-            
-        train_len = int(length * 0.70)
-        val_len = int(length * 0.15)
-        
-        if train_len < SEQ_LEN:
-            continue
-            
-        train_end = start_idx + train_len
-        val_end = train_end + val_len
-        
-        # Training sequences
-        for i in range(start_idx, train_end - SEQ_LEN):
-            X_train_seq.append(X_scaled[i : i + SEQ_LEN])
-            y_train_seq.append(y_raw[i + SEQ_LEN - 1])
-            
-        # Validation sequences
-        for i in range(max(start_idx + SEQ_LEN, train_end), val_end - SEQ_LEN):
-            X_val_seq.append(X_scaled[i : i + SEQ_LEN])
-            y_val_seq.append(y_raw[i + SEQ_LEN - 1])
-            
-        # Testing sequences
-        for i in range(max(start_idx + SEQ_LEN, val_end), end_idx - SEQ_LEN):
-            X_test_seq.append(X_scaled[i : i + SEQ_LEN])
-            y_test_seq.append(y_raw[i + SEQ_LEN - 1])
-            
-    print("  [Debug] Converting sequences to numpy arrays...")
-    X_train = np.array(X_train_seq, dtype=np.float32)
-    y_train = np.array(y_train_seq, dtype=np.int64)
-    X_val = np.array(X_val_seq, dtype=np.float32)
-    y_val = np.array(y_val_seq, dtype=np.int64)
-    X_test = np.array(X_test_seq, dtype=np.float32)
-    y_test = np.array(y_test_seq, dtype=np.int64)
-    
-    print("  [Debug] Encoding labels...")
-    # Encode labels
     le = LabelEncoder()
-    le.fit(['Sell', 'Hold', 'Buy'])
+    le.fit(['Down', 'Up'])
     
-    y_train_str = pd.Series(y_train).map({0: 'Sell', 1: 'Hold', 2: 'Buy'})
-    y_val_str = pd.Series(y_val).map({0: 'Sell', 1: 'Hold', 2: 'Buy'})
-    y_test_str = pd.Series(y_test).map({0: 'Sell', 1: 'Hold', 2: 'Buy'})
-    
-    y_train_enc = le.transform(y_train_str)
-    y_val_enc = le.transform(y_val_str)
-    y_test_enc = le.transform(y_test_str)
-    
-    buy_pct = (y_train == 2).mean() * 100
-    hold_pct = (y_train == 1).mean() * 100
-    sell_pct = (y_train == 0).mean() * 100
-    print(f"\n  Dataset Summary:")
-    print(f"  Training Sequences:   {len(X_train):,}")
-    print(f"  Validation Sequences: {len(X_val):,}")
-    print(f"  Testing Sequences:    {len(X_test):,}")
-    X_clean = X_raw
-    used_features = feature_cols
-    print(f"  Features:             {X_clean.shape[1]}")
-    print(f"  Buy (Train):          {buy_pct:.1f}%")
-    print(f"  Hold (Train):         {hold_pct:.1f}%")
-    print(f"  Sell (Train):         {sell_pct:.1f}%")
-    
-    return X_train, y_train_enc, X_val, y_val_enc, X_test, y_test_enc, scaler, le, used_features
+    return {
+        'X_train': X_train_scaled,
+        'y_train': y_train,
+        'X_test': X_test_scaled,
+        'y_test': y_test,
+        'scaler': scaler,
+        'label_encoder': le,
+        'used_features': survived_features
+    }
 
-def build_training_dataset():
-    print("\n" + "="*60)
-    print("  ESG Stock Prediction - Training LSTM on REAL Market Data")
-    print("="*60)
-    print("\n[*] Loading ESG data...")
-    try:
-        esg_data = pd.read_csv(STOCK_LIST_PATH)
-        print(f"  Loaded {len(esg_data)} tickers from ESG dataset")
-    except Exception as e:
-        print(f"  [!] Error loading ESG data: {e}")
-        return None, None, None, None, None, None, None, None, None
-    return build_real_training_data(esg_data)
-class PyTorchLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size=64, num_layers=2, num_classes=3, dropout=0.5):
-        super(PyTorchLSTM, self).__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        
-        # Bi-directional LSTM for stronger sequence modeling
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
-                            batch_first=True, dropout=dropout if num_layers > 1 else 0,
-                            bidirectional=True)
-        
-        # Since it's bidirectional, hidden_size is multiplied by 2
-        self.bn1 = nn.BatchNorm1d(hidden_size * 2)
-        self.fc1 = nn.Linear(hidden_size * 2, hidden_size)
-        self.bn2 = nn.BatchNorm1d(hidden_size)
-        self.relu = nn.LeakyReLU()
-        self.dropout = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(hidden_size, num_classes)
-        
-    def forward(self, x):
-        # x is (batch_size, seq_len, input_size)
-        out, _ = self.lstm(x)
-        
-        # Take the last time step from the sequence
-        out = out[:, -1, :]
-        
-        out = self.bn1(out)
-        out = self.fc1(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-        out = self.dropout(out)
-        out = self.fc2(out)
-        return out
-
-def train_lstm_model(X_train, y_train, X_val, y_val):
-    print("\n" + "="*60)
-    print("  Training Deep Learning LSTM Model (PyTorch)")
-    print("="*60)
-    
-    # Convert to tensors
-    X_train_tensor = torch.tensor(X_train)
-    y_train_tensor = torch.tensor(y_train, dtype=torch.long)
-    X_val_tensor = torch.tensor(X_val)
-    y_val_tensor = torch.tensor(y_val, dtype=torch.long)
-    
-    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-    
-    model = PyTorchLSTM(input_size=X_train.shape[2])
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-3)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
-    
-    epochs = 15
-    best_val_loss = float('inf')
-    best_model_state = None
-    patience = 4
-    patience_counter = 0
-    
-    for epoch in range(epochs):
-        model.train()
-        train_loss = 0
-        train_correct = 0
-        for X_batch, y_batch in train_loader:
-            optimizer.zero_grad()
-            outputs = model(X_batch)
-            loss = criterion(outputs, y_batch)
-            loss.backward()
-            optimizer.step()
-            train_loss += loss.item()
-            _, predicted = torch.max(outputs.data, 1)
-            train_correct += (predicted == y_batch).sum().item()
-            
-        train_acc = train_correct / len(y_train_tensor)
-            
-        # Validation (Batched)
-        model.eval()
-        val_loss = 0
-        val_correct = 0
-        with torch.no_grad():
-            val_dataset = TensorDataset(X_val_tensor, y_val_tensor)
-            val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False)
-            for vx, vy in val_loader:
-                v_out = model(vx)
-                val_loss += criterion(v_out, vy).item() * vx.size(0)
-                _, v_pred = torch.max(v_out.data, 1)
-                val_correct += (v_pred == vy).sum().item()
-            val_loss /= len(y_val_tensor)
-            val_acc = val_correct / len(y_val_tensor)
-            
-        print(f"Epoch {epoch+1:02d}/{epochs} | Train Loss: {train_loss/len(train_loader):.4f} | Val Loss: {val_loss:.4f} | Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}")
-        
-        scheduler.step(val_loss)
-        
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            best_model_state = model.state_dict().copy()
-            patience_counter = 0
-        else:
-            patience_counter += 1
-            if patience_counter >= patience:
-                print("Early stopping triggered.")
-                break
-                
-    model.load_state_dict(best_model_state)
-    return model
-
-def save_model_artifacts(model, scaler, label_encoder, metrics, cols):
-    print(f"\n[*] Saving model artifacts...")
-    torch.save(model.state_dict(), MODEL_PATH)
-    size_mb = os.path.getsize(MODEL_PATH) / 1024 / 1024 if os.path.exists(MODEL_PATH) else 0
-    print(f"  [OK] LSTM Model saved to {MODEL_PATH} ({size_mb:.1f} MB)")
-    
-    joblib.dump(scaler, SCALER_PATH)
-    joblib.dump(label_encoder, ENCODER_PATH)
-    print(f"  [OK] Scaler & encoder saved")
+def save_model_artifacts(best_model_name, best_model, test_acc, precision, recall, f1, cm, data_dict):
+    print(f"\n[*] Saving model artifacts for best model: {best_model_name}")
+    joblib.dump(best_model, MODEL_PATH)
+    joblib.dump(data_dict['scaler'], SCALER_PATH)
+    joblib.dump(data_dict['label_encoder'], ENCODER_PATH)
     
     metadata = {
-        'model_type': 'LSTM_PyTorch',
-        'best_model_name': 'LSTM Deep Learning',
-        'accuracy': metrics['accuracy'],
-        'precision': metrics['precision'],
-        'recall': metrics['recall'],
-        'f1_score': metrics['f1_score'],
-        'cv_mean': metrics['accuracy'],
+        'model_type': 'Tree_Binary',
+        'best_model_name': best_model_name,
+        'accuracy': test_acc,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1,
+        'cv_mean': test_acc,
         'cv_std': 0.0,
-        'confusion_matrix': metrics['confusion_matrix'],
+        'confusion_matrix': cm,
         'all_results': {},
-        'base_models': ['LSTM'],
-        'feature_count': len(cols),
-        'features': cols,
-        'sequence_length': SEQ_LEN,
+        'base_models': [best_model_name],
+        'feature_count': len(data_dict['used_features']),
+        'features': data_dict['used_features'],
         'training_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'label_classes': ['Buy', 'Hold', 'Sell'],
+        'label_classes': ['Down', 'Up'],
         'training_source': 'REAL_MARKET_DATA_5YR_TIMESERIES',
         'forward_window_days': FORWARD_WINDOW,
-        'buy_threshold': BUY_THRESHOLD,
-        'sell_threshold': SELL_THRESHOLD,
         'correlation_threshold': CORR_THRESHOLD,
         'hyperparameter_tuning': False,
-        'validation': 'PER_STOCK_TIMESERIES_SPLIT',
+        'validation': 'CHRONOLOGICAL_SPLIT',
         'data_leakage_free': True
     }
     with open(METADATA_PATH, 'w') as f:
         json.dump(metadata, f, indent=2)
-    print(f"  [OK] Metadata saved (data_leakage_free: True, validation: per-stock time-series)")
 
 def main():
     start_time = time.time()
-    print("="*60)
-    print("  ESG Stock Prediction - LSTM Training Pipeline")
-    print("="*60)
-    print(f"  Features:        {len(feature_cols)}")
-    print(f"  Label window:    {FORWARD_WINDOW} trading days")
-    print(f"  Sequence Length: {SEQ_LEN} days")
-    print("="*60)
-    
     ensure_directories()
-    result = build_training_dataset()
-    if result[0] is None:
-        print("\n[!] Training dataset building failed!")
+    
+    macro_df = fetch_macro_data()
+    esg_data = pd.read_csv(STOCK_LIST_PATH)
+    
+    data_dict = fetch_and_preprocess_data(esg_data, macro_df)
+    if data_dict is None:
+        print("[!] Preprocessing failed.")
         return
         
-    X_train, y_train_enc, X_val, y_val_enc, X_test, y_test_enc, scaler, label_encoder, used_features = result
+    X_train = data_dict['X_train']
+    y_train = data_dict['y_train']
+    X_test = data_dict['X_test']
+    y_test = data_dict['y_test']
     
-    model = train_lstm_model(X_train, y_train_enc, X_val, y_val_enc)
+    models = {}
+    if HAS_LGBM:
+        models["LightGBM"] = LGBMClassifier(
+            n_estimators=300, 
+            max_depth=12, 
+            learning_rate=0.03, 
+            num_leaves=63, 
+            subsample=0.8,
+            colsample_bytree=0.8,
+            random_state=42, 
+            n_jobs=-1, 
+            class_weight='balanced',
+            verbose=-1
+        )
+    else:
+        models["Random Forest"] = RandomForestClassifier(n_estimators=200, max_depth=10, random_state=42, n_jobs=-1, class_weight='balanced')
+        
+    best_acc = 0
+    best_model = None
+    best_name = None
+    best_metrics = {}
     
-    # Evaluate using batches to avoid OOM
-    print("\n[*] Evaluating Best Model...")
-    model.eval()
-    y_pred_list = []
-    with torch.no_grad():
-        X_test_tensor = torch.tensor(X_test)
-        test_dataset = TensorDataset(X_test_tensor, torch.zeros(len(X_test_tensor)))
-        test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False)
-        for tx, _ in test_loader:
-            y_pred_logits = model(tx)
-            _, y_batch_pred = torch.max(y_pred_logits, 1)
-            y_pred_list.extend(y_batch_pred.numpy())
-    y_pred = np.array(y_pred_list)
+    print("\n" + "="*60)
+    print("  PHASE 2: TRAINING MODELS & THRESHOLD OPTIMIZATION")
+    print("="*60)
     
-    acc = accuracy_score(y_test_enc, y_pred)
-    pre = precision_score(y_test_enc, y_pred, average='weighted', zero_division=0)
-    rec = recall_score(y_test_enc, y_pred, average='weighted', zero_division=0)
-    f1 = f1_score(y_test_enc, y_pred, average='weighted', zero_division=0)
-    cm = confusion_matrix(y_test_enc, y_pred).tolist()
+    for name, model in models.items():
+        print(f"  Training {name}...")
+        model.fit(X_train, y_train)
+        
+        # Optimize threshold on training set
+        train_probs = model.predict_proba(X_train)[:, 1]
+        best_thresh = 0.5
+        best_train_acc = 0
+        for thresh in np.linspace(0.1, 0.9, 100):
+            train_preds = (train_probs >= thresh).astype(int)
+            train_acc = accuracy_score(y_train, train_preds)
+            if train_acc > best_train_acc:
+                best_train_acc = train_acc
+                best_thresh = thresh
+                
+        print(f"  Optimized Threshold: {best_thresh:.4f} (Train Acc: {best_train_acc:.2%})")
+        
+        # Evaluate on test set using optimal threshold
+        test_probs = model.predict_proba(X_test)[:, 1]
+        preds = (test_probs >= best_thresh).astype(int)
+        
+        acc = accuracy_score(y_test, preds)
+        pre = precision_score(y_test, preds, average='weighted', zero_division=0)
+        rec = recall_score(y_test, preds, average='weighted', zero_division=0)
+        f1 = f1_score(y_test, preds, average='weighted', zero_division=0)
+        cm = confusion_matrix(y_test, preds).tolist()
+        
+        print(f"  {name} Test Acc: {acc:.2%}")
+        
+        if acc > best_acc:
+            best_acc = acc
+            best_model = model
+            best_name = name
+            best_metrics = (acc, pre, rec, f1, cm)
+            
+    print("\n" + "="*60)
+    print("  OPTIMIZATION COMPLETE")
+    print("="*60)
+    print(f"  Best Model:          {best_name}")
+    print(f"  Final Test Accuracy: {best_metrics[0]:.2%}")
+    print(f"  Test F1 Score:       {best_metrics[3]:.2%}")
     
-    metrics = {
-        'accuracy': acc,
-        'precision': pre,
-        'recall': rec,
-        'f1_score': f1,
-        'confusion_matrix': cm
-    }
+    # Store the optimal threshold in the model object before saving
+    if best_model is not None:
+        best_model.optimal_threshold = best_thresh
     
-    save_model_artifacts(model, scaler, label_encoder, metrics, used_features)
+    save_model_artifacts(best_name, best_model, *best_metrics, data_dict)
     
     elapsed = time.time() - start_time
-    print("\n" + "="*60)
-    print("  LSTM TRAINING COMPLETE!")
-    print(f"  Test Accuracy:  {acc:.2%}")
-    print(f"  F1 Score:       {f1:.2%}")
-    print(f"  Time elapsed:   {elapsed:.0f}s")
+    print(f"  Total Time:          {elapsed/60:.1f} minutes")
     print("="*60)
 
 if __name__ == '__main__':

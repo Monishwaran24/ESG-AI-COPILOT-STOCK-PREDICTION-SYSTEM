@@ -46,7 +46,7 @@
         </nav>
 
         <!-- Model Info Header -->
-        <div class="card mb-4 fade-in">
+        <div class="card glass-card mb-4 fade-in">
             <div class="row g-0 align-items-center">
                 <div class="col-md-8 p-4">
                     <h4 class="mb-1">
@@ -71,32 +71,32 @@
         <!-- Key Metrics -->
         <div class="row g-4 mb-4">
             <div class="col-md-3 col-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="metric-value" style="font-size: 2rem;">{{ "%.1f"|format(metadata.accuracy * 100) }}%</div>
                         <div class="metric-label">Accuracy</div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="metric-value" style="font-size: 2rem;">{{ "%.1f"|format(metadata.precision * 100) }}%</div>
                         <div class="metric-label">Precision</div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="metric-value" style="font-size: 2rem;">{{ "%.1f"|format(metadata.recall * 100) }}%</div>
                         <div class="metric-label">Recall</div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="metric-value" style="font-size: 2rem;">{{ "%.1f"|format(metadata.f1_score * 100) }}%</div>
                         <div class="metric-label">F1 Score</div>
                     </div>
@@ -107,16 +107,16 @@
         <!-- Additional Metrics Row -->
         <div class="row g-4 mb-4">
             <div class="col-md-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="metric-value" style="font-size: 1.5rem;">{{ "%.2f"|format(metadata.cv_mean * 100) }}% ± {{ "%.2f"|format(metadata.cv_std * 100) }}%</div>
                         <div class="metric-label">Cross-Validation Score (5-Fold)</div>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="d-flex justify-content-center gap-3">
                             {% for class_name in metadata.label_classes %}
                             <span class="recommendation-badge {{ class_name.lower() }}" style="font-size: 0.8rem; padding: 0.35rem 1rem;">
@@ -133,12 +133,12 @@
         <!-- Model Comparison Chart & Confusion Matrix -->
         <div class="row g-4 mb-4">
             <div class="col-lg-7">
-                <div class="card h-100 fade-in">
-                    <div class="card-header">
+                <div class="card glass-card h-100 fade-in">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-bar-chart-steps"></i> Model Comparison</span>
                         <span class="badge bg-success">Performance Metrics</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <canvas id="performanceChart"
                             data-metrics='{{ metadata.all_results | tojson | safe }}'>
                         </canvas>
@@ -147,12 +147,12 @@
             </div>
 
             <div class="col-lg-5">
-                <div class="card h-100 fade-in">
-                    <div class="card-header">
+                <div class="card glass-card h-100 fade-in">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-grid-3x3-gap-fill"></i> Confusion Matrix</span>
                         <span class="badge bg-info">Actual vs Predicted</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         {% if metadata.confusion_matrix %}
                         <div class="table-responsive">
                             <table class="matrix-table">
@@ -204,12 +204,12 @@
         </div>
 
         <!-- Features Used -->
-        <div class="card mb-4 fade-in">
-            <div class="card-header">
+        <div class="card glass-card mb-4 fade-in">
+            <div class="card glass-card-header">
                 <span><i class="bi bi-list-check"></i> Features Used for Training</span>
                 <span class="badge bg-primary">{{ metadata.features | length }} features</span>
             </div>
-            <div class="card-body">
+            <div class="card glass-card-body">
                 <div class="row g-2">
                     {% for feature in metadata.features %}
                     <div class="col-md-3 col-6">
@@ -224,14 +224,14 @@
         </div>
 
         <!-- Model Details -->
-        <div class="card fade-in">
-            <div class="card-header">
+        <div class="card glass-card fade-in">
+            <div class="card glass-card-header">
                 <span><i class="bi bi-info-circle"></i> Model Details</span>
             </div>
-            <div class="card-body">
+            <div class="card glass-card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <table class="table-esg">
+                        <table class="table table-borderless table-esg-premium">
                             <tbody>
                                 <tr>
                                     <td class="text-secondary">Model Type</td>
@@ -253,7 +253,7 @@
                         </table>
                     </div>
                     <div class="col-md-6">
-                        <table class="table-esg">
+                        <table class="table table-borderless table-esg-premium">
                             <tbody>
                                 <tr>
                                     <td class="text-secondary">Total Features</td>

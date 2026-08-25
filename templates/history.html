@@ -31,34 +31,26 @@
             </div>
         </nav>
 
-        <div class="row g-4 mb-4">
-            <div class="col-md-3 col-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+        <div class="row g-3 mb-4">
+            <div class="col-md-4 col-12">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="display-5 fw-bold text-esg">{{ stats.total_predictions }}</div>
                         <small class="text-secondary">Total Predictions</small>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+            <div class="col-md-4 col-6">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="display-5 fw-bold text-buy">{{ stats.by_recommendation.get('Buy', 0) }}</div>
                         <small class="text-secondary">Buy Signals</small>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
-                        <div class="display-5 fw-bold text-hold">{{ stats.by_recommendation.get('Hold', 0) }}</div>
-                        <small class="text-secondary">Hold Signals</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="card text-center p-3 fade-in">
-                    <div class="card-body">
+            <div class="col-md-4 col-6">
+                <div class="card glass-card text-center p-3 fade-in">
+                    <div class="card glass-card-body">
                         <div class="display-5 fw-bold text-sell">{{ stats.by_recommendation.get('Sell', 0) }}</div>
                         <small class="text-secondary">Sell Signals</small>
                     </div>
@@ -66,8 +58,8 @@
             </div>
         </div>
 
-        <div class="card mb-4 fade-in">
-            <div class="card-body">
+        <div class="card glass-card mb-4 fade-in">
+            <div class="card glass-card-body">
                 <form method="GET" action="{{ url_for('history') }}">
                     <div class="row g-3 align-items-end">
                         <div class="col-md-4">
@@ -87,15 +79,15 @@
             </div>
         </div>
 
-        <div class="card fade-in">
-            <div class="card-header">
+        <div class="card glass-card fade-in">
+            <div class="card glass-card-header">
                 <span><i class="bi bi-list-check"></i> Recent Predictions</span>
                 <span class="badge bg-info">{{ predictions|length }} entries</span>
             </div>
-            <div class="card-body p-0">
+            <div class="card glass-card-body p-0">
                 {% if predictions %}
                 <div class="table-responsive" style="max-height:600px;overflow-y:auto;">
-                    <table class="table-esg mb-0">
+                    <table class="table table-borderless table-esg-premium mb-0">
                         <thead>
                             <tr>
                                 <th>Time</th>
@@ -160,15 +152,15 @@
         </div>
 
         {% if watched %}
-        <div class="card mt-4 fade-in">
-            <div class="card-header">
+        <div class="card glass-card mt-4 fade-in">
+            <div class="card glass-card-header">
                 <span><i class="bi bi-star-fill text-esg"></i> Watched Stocks</span>
             </div>
-            <div class="card-body">
+            <div class="card glass-card-body">
                 <div class="row g-3">
                     {% for w in watched %}
                     <div class="col-md-3 col-6">
-                        <div class="card text-center p-3" style="background:rgba(0,0,0,0.2);">
+                        <div class="card glass-card text-center p-3" style="background:rgba(0,0,0,0.2);">
                             <h5 class="fw-bold mb-1">{{ w.ticker }}</h5>
                             <small class="text-secondary">
                                 {% if w.last_prediction %}

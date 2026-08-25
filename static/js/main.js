@@ -375,7 +375,7 @@ function renderPredictionResult(result) {
         </div>
       </div>
 
-      <div class="card mb-4 fade-in">
+      <div class="card mb-4 fade-in chart-card-premium">
         <div class="card-header">
           <span><i class="bi bi-candlestick-chart-fill"></i> ${result.ticker} - Candlestick Chart</span>
           <div class="d-flex align-items-center gap-2">
@@ -386,11 +386,11 @@ function renderPredictionResult(result) {
         </div>
         <div class="card-body">
           <div class="candle-chart-wrap">
-            <div class="chart-toolbar d-flex justify-content-end gap-2 mb-2">
-              <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="1mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">1M</button>
-              <button class="btn-outline-esg btn-sm candle-timeframe active" data-tf="3mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">3M</button>
-              <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="6mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">6M</button>
-              <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="1y" style="padding:0.2rem 0.5rem;font-size:0.7rem;">1Y</button>
+            <div class="chart-toolbar d-flex justify-content-end gap-2 mb-2 chart-toolbar-premium">
+              <button class="btn-outline-esg btn-sm candle-timeframe candle-timeframe-premium" data-tf="1mo">1M</button>
+              <button class="btn-outline-esg btn-sm candle-timeframe candle-timeframe-premium active" data-tf="3mo">3M</button>
+              <button class="btn-outline-esg btn-sm candle-timeframe candle-timeframe-premium" data-tf="6mo">6M</button>
+              <button class="btn-outline-esg btn-sm candle-timeframe candle-timeframe-premium" data-tf="1y">1Y</button>
             </div>
             <div id="tvCandleChart" class="candle-chart-main" style="width:100%;height:380px;"></div>
             <div id="tvVolumeChart" class="candle-chart-volume" style="width:100%;height:80px;"></div>
@@ -406,10 +406,10 @@ function renderPredictionResult(result) {
         <div class="card-header"><span><i class="bi bi-pie-chart-fill"></i> Confidence Breakdown</span></div>
         <div class="card-body">
           <div class="row g-4">
-            ${['Buy','Hold','Sell'].map(function(a) {
+            ${['Buy','Sell'].map(function(a) {
               const s = result.confidence_scores && result.confidence_scores[a] ? result.confidence_scores[a] : 0;
-              const c = a === 'Buy' ? '#4caf50' : a === 'Hold' ? '#ff9800' : '#f44336';
-              return '<div class="col-md-4"><div class="text-center p-3" style="background:rgba(0,0,0,0.2);border-radius:12px;"><div class="recommendation-badge '+a.toLowerCase()+' mb-2" style="font-size:0.85rem;">'+a+'</div><div class="display-6 fw-bold" style="color:'+c+';">'+s.toFixed(1)+'%</div><div class="progress-esg mt-2" style="height:6px;"><div class="progress-bar" style="width:'+s+'%;background:'+c+';"></div></div></div></div>';
+              const c = a === 'Buy' ? '#4caf50' : '#f44336';
+              return '<div class="col-md-6"><div class="text-center p-3" style="background:rgba(0,0,0,0.2);border-radius:12px;"><div class="recommendation-badge '+a.toLowerCase()+' mb-2" style="font-size:0.85rem;">'+a+'</div><div class="display-6 fw-bold" style="color:'+c+';">'+s.toFixed(1)+'%</div><div class="progress-esg mt-2" style="height:6px;"><div class="progress-bar" style="width:'+s+'%;background:'+c+';"></div></div></div></div>';
             }).join('')}
           </div>
         </div>
@@ -686,13 +686,13 @@ function initializeStockPriceChart() {
 
     var canvas = document.getElementById('stockPriceChart');
     if (!canvas) return;
-    let prices = [], labels = [], recommendation = 'Hold';
+    let prices = [], labels = [], recommendation = 'Sell';
     const currency = canvas.getAttribute('data-currency') || '$';
 
     try {
         prices = JSON.parse(canvas.getAttribute('data-prices') || '[]');
         labels = JSON.parse(canvas.getAttribute('data-dates') || '[]');
-        recommendation = canvas.getAttribute('data-rec') || 'Hold';
+        recommendation = canvas.getAttribute('data-rec') || 'Sell';
     } catch (e) { return; }
 
     if (prices.length === 0) return;
@@ -788,7 +788,7 @@ function initializeConfusionMatrix() {
     var canvas = document.getElementById('confusionMatrixChart');
     if (!canvas) return;
     let matrix = [];
-    const labels = ['Sell', 'Hold', 'Buy'];
+    const labels = ['Sell', 'Buy'];
     try { matrix = JSON.parse(canvas.getAttribute('data-matrix') || '[]'); } catch (e) { return; }
     if (matrix.length === 0) return;
 
@@ -1643,15 +1643,15 @@ function renderCandlestickChart(ticker, timeframe) {
     }
     
     var candleSeries = candleChart.addCandlestickSeries({
-        upColor: '#4caf50', downColor: '#f44336',
-        borderDownColor: '#f44336', borderUpColor: '#4caf50',
-        wickDownColor: '#f44336', wickUpColor: '#4caf50',
+        upColor: '#00e676', downColor: '#ff1744',
+        borderDownColor: '#ff1744', borderUpColor: '#00e676',
+        wickDownColor: '#ff1744', wickUpColor: '#00e676',
     });
     
     var volumeSeries = null;
     if (volumeChart) {
         volumeSeries = volumeChart.addHistogramSeries({
-            color: 'rgba(76, 175, 80, 0.4)',
+            color: 'rgba(0, 230, 118, 0.4)',
             priceFormat: { type: 'volume' },
         });
     }
@@ -1725,7 +1725,7 @@ function renderCandlestickChart(ticker, timeframe) {
                 return {
                     time: typeof c.t === 'number' ? Math.floor(c.t) : c.t,
                     value: c.v,
-                    color: up ? 'rgba(76,175,80,0.4)' : 'rgba(244,67,54,0.4)'
+                    color: up ? 'rgba(0,230,118,0.4)' : 'rgba(255,23,68,0.4)'
                 };
             });
             
@@ -1763,7 +1763,7 @@ function renderCandlestickChart(ticker, timeframe) {
                     var b = p.signal.indexOf('Bull') >= 0 || p.signal.indexOf('Up') >= 0;
                     return {
                         time: p.date, position: b ? 'belowBar' : 'aboveBar',
-                        color: b ? '#4caf50' : '#f44336',
+                        color: b ? '#00e676' : '#ff1744',
                         shape: b ? 'arrowUp' : 'arrowDown', text: p.pattern || ''
                     };
                 });
@@ -1781,7 +1781,7 @@ function renderCandlestickChart(ticker, timeframe) {
                     var pi = document.getElementById('candlePriceInfo');
                     if (pi) pi.innerHTML = 
                         'O:' + last.o.toFixed(2) + ' H:' + last.h.toFixed(2) + ' L:' + last.l.toFixed(2) + ' C:' + last.c.toFixed(2) +
-                        ' <span style="color:' + (chg>=0?'#4caf50':'#f44336') + ';">' + (chg>=0?'+':'') + chg + '%</span>' +
+                        ' <span style="color:' + (chg>=0?'#00e676':'#ff1744') + ';">' + (chg>=0?'+':'') + chg + '%</span>' +
                         ' Vol:' + (last.v/1000000).toFixed(1) + 'M';
                 }
             } catch(e) { console.warn('Price info error:', e); }

@@ -60,9 +60,8 @@ FEATURE_GROUPS = {
     },
 }
 
-# Use BASE_FEATURES (36) to match what the trained model/StandardScaler expects
-# feature_cols has 67 features but the model was trained with only the first 36
-ALL_FEATURES = BASE_FEATURES
+# Use all features (67) to match the trained model
+ALL_FEATURES = feature_cols
 
 
 def _get_feature_group(feature_name):

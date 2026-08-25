@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 /* ============================================================
    ESG Stock Prediction System - Custom Styles
    ============================================================
@@ -3182,3 +3183,393 @@ select.form-control {
 /* Light theme overrides */
 [data-theme="light"] .alert-card { background: #ffffff; }
 [data-theme="light"] .alert-stat-card { background: #ffffff; }
+
+/* ----- Premium Chart Aesthetics ----- */
+.chart-card-premium {
+    background: rgba(19, 47, 76, 0.4) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(144, 202, 249, 0.15) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+}
+.chart-card-premium::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 50% 50%, rgba(76, 175, 80, 0.05), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}
+.chart-card-premium .card-header,
+.chart-card-premium .card-body {
+    position: relative;
+    z-index: 1;
+    background: transparent !important;
+    border-bottom: none;
+}
+.chart-card-premium .card-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 1.25rem 1.5rem;
+}
+.chart-toolbar-premium {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 30px;
+    padding: 4px;
+    display: inline-flex;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.candle-timeframe-premium {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.4rem 1rem !important;
+    border-radius: 20px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.candle-timeframe-premium:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.05);
+}
+.candle-timeframe-premium.active {
+    background: linear-gradient(135deg, var(--esg-accent), var(--esg-primary)) !important;
+    color: #fff !important;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4) !important;
+    border-color: transparent !important;
+}
+
+/* ----- Premium Home Page Aesthetics ----- */
+/* Hero Section Enhancements */
+.hero-section {
+    position: relative;
+    padding: 6rem 2rem !important;
+    overflow: hidden;
+    background: radial-gradient(circle at top right, rgba(0, 230, 118, 0.08), transparent 50%),
+                radial-gradient(circle at bottom left, rgba(144, 202, 249, 0.05), transparent 50%);
+    border-radius: 30px;
+    margin-bottom: 3rem;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.hero-title {
+    font-weight: 800;
+    font-size: 3.5rem;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+}
+
+.hero-title .highlight {
+    background: linear-gradient(135deg, #00e676, #00b0ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 40px rgba(0, 230, 118, 0.3);
+}
+
+.hero-subtitle {
+    font-size: 1.15rem;
+    color: rgba(255, 255, 255, 0.7);
+    max-width: 90%;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+/* Floating Glass Cards */
+.glass-floating-card {
+    background: rgba(19, 47, 76, 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 24px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+    border-radius: 24px;
+    padding: 2.5rem;
+    animation: float-y 6s ease-in-out infinite;
+    position: relative;
+    z-index: 2;
+}
+
+.glass-floating-card::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 26px;
+    background: linear-gradient(135deg, rgba(0, 230, 118, 0.5), transparent, rgba(0, 176, 255, 0.5));
+    z-index: -1;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+
+@keyframes float-y {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0); }
+}
+
+/* Stats Row Premium */
+.stat-card-premium {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+    position: relative;
+}
+
+.stat-card-premium:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: rgba(0, 230, 118, 0.3) !important;
+    box-shadow: 0 15px 30px rgba(0, 230, 118, 0.1);
+}
+
+.stat-card-premium .display-5 {
+    background: linear-gradient(135deg, #fff, #aaa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
+/* Bento Feature Cards */
+.bento-card {
+    background: rgba(20, 25, 35, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 24px;
+    padding: 2rem;
+    height: 100%;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.bento-card:hover {
+    background: rgba(30, 35, 50, 0.8);
+    transform: translateY(-5px);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.bento-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Gradients for Feature Icons */
+.grad-1 { background: linear-gradient(135deg, rgba(0,230,118,0.2), rgba(0,0,0,0)); border-color: rgba(0,230,118,0.3); color: #00e676; }
+.grad-2 { background: linear-gradient(135deg, rgba(0,176,255,0.2), rgba(0,0,0,0)); border-color: rgba(0,176,255,0.3); color: #00b0ff; }
+.grad-3 { background: linear-gradient(135deg, rgba(255,152,0,0.2), rgba(0,0,0,0)); border-color: rgba(255,152,0,0.3); color: #FF9800; }
+.grad-4 { background: linear-gradient(135deg, rgba(213,0,249,0.2), rgba(0,0,0,0)); border-color: rgba(213,0,249,0.3); color: #d500f9; }
+.grad-5 { background: linear-gradient(135deg, rgba(255,23,68,0.2), rgba(0,0,0,0)); border-color: rgba(255,23,68,0.3); color: #ff1744; }
+.grad-6 { background: linear-gradient(135deg, rgba(0,229,255,0.2), rgba(0,0,0,0)); border-color: rgba(0,229,255,0.3); color: #00e5ff; }
+
+/* Table Enhancements */
+.table-esg-premium {
+    background: rgba(0,0,0,0.2);
+    border-radius: 20px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.table-esg-premium th {
+    background: rgba(255,255,255,0.02) !important;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.5);
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+.table-esg-premium td {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+    vertical-align: middle;
+}
+
+.table-esg-premium tr:hover td {
+    background: rgba(255,255,255,0.02) !important;
+}
+
+/* ----- Global Premium Aesthetics ----- */
+
+/* Override display-5 for stats to fix wrapping issues on smaller screens */
+.stat-card-premium .display-5 {
+    font-size: clamp(2rem, 3.5vw, 3rem) !important;
+}
+
+/* Generic Glass Card */
+.glass-card {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Form Controls Premium */
+.form-control, .form-select {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(0, 230, 118, 0.5) !important;
+    box-shadow: 0 0 0 0.25rem rgba(0, 230, 118, 0.25) !important;
+}
+
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Sidebar Enhancements */
+#sidebar {
+    background: rgba(15, 20, 28, 0.85) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* ----- Extreme Premium Aesthetics ----- */
+
+/* Global Typography */
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(10, 15, 25, 1);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 230, 118, 0.5);
+}
+
+/* Custom Selection */
+::selection {
+    background: rgba(0, 230, 118, 0.3);
+    color: #fff;
+}
+
+/* Animated Ambient Background */
+body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: 
+        radial-gradient(circle at 50% 50%, rgba(0, 230, 118, 0.03) 0%, transparent 40%),
+        radial-gradient(circle at 80% 20%, rgba(0, 176, 255, 0.03) 0%, transparent 40%),
+        radial-gradient(circle at 20% 80%, rgba(213, 0, 249, 0.03) 0%, transparent 40%);
+    z-index: -2;
+    animation: ambientPulse 20s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+body {
+    background-color: #0b0f19; /* Deeper, richer dark background */
+}
+
+@keyframes ambientPulse {
+    0% { transform: rotate(0deg) scale(1); }
+    100% { transform: rotate(15deg) scale(1.1); }
+}
+
+/* State-of-the-Art Glowing Buttons */
+.btn-esg, .btn-outline-esg {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    z-index: 1;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px;
+}
+
+.btn-esg {
+    background: linear-gradient(135deg, #00e676, #00c853) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+    color: #000 !important;
+}
+
+.btn-esg:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(0, 230, 118, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+.btn-outline-esg {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(0, 230, 118, 0.4) !important;
+    color: #00e676 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+    backdrop-filter: blur(5px);
+}
+
+.btn-outline-esg:hover {
+    background: rgba(0, 230, 118, 0.1) !important;
+    border-color: #00e676 !important;
+    color: #fff !important;
+    box-shadow: 0 0 20px rgba(0, 230, 118, 0.4) !important;
+    transform: translateY(-2px);
+}
+
+/* Sidebar Active Link Neon Glow */
+.sidebar-nav .nav-link {
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    margin: 4px 8px;
+}
+.sidebar-nav .nav-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(5px);
+}
+.sidebar-nav .nav-link.active {
+    background: linear-gradient(90deg, rgba(0, 230, 118, 0.15), transparent) !important;
+    border-left: 3px solid #00e676 !important;
+    color: #fff !important;
+    text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    border-radius: 0 8px 8px 0;
+    margin-left: 0;
+    padding-left: 1.25rem;
+}
+
+/* Premium Table Row Hover */
+.table-esg-premium tbody tr {
+    transition: all 0.3s ease;
+}
+.table-esg-premium tbody tr:hover td {
+    background: rgba(0, 230, 118, 0.03) !important;
+}
+.table-esg-premium tbody tr:hover {
+    transform: scale(1.01);
+    box-shadow: inset 0 0 20px rgba(0, 230, 118, 0.05);
+}

@@ -35,7 +35,7 @@
             </div>
         </nav>
 
-        <div class="card mb-4 fade-in">
+        <div class="card glass-card mb-4 fade-in">
             <div class="row g-0 align-items-center">
                 <div class="col-md-8 p-3">
                     <div class="d-flex align-items-center gap-3">
@@ -68,7 +68,7 @@
         <h4 class="mb-3"><i class="bi bi-pie-chart-fill text-esg me-2"></i> ESG Score Breakdown</h4>
         <div class="row g-4 mb-5">
             <div class="col-md-4">
-                <div class="esg-metric-card env text-center">
+                <div class="bento-card env text-center">
                     <div class="esg-metric-icon mx-auto"><i class="bi bi-droplet"></i></div>
                     <div class="esg-metric-value esg-display-env" style="color: var(--env-color);">--</div>
                     <div class="esg-metric-label">Environmental Score</div>
@@ -76,7 +76,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="esg-metric-card social text-center">
+                <div class="bento-card social text-center">
                     <div class="esg-metric-icon mx-auto"><i class="bi bi-people-fill"></i></div>
                     <div class="esg-metric-value esg-display-social" style="color: var(--social-color);">--</div>
                     <div class="esg-metric-label">Social Score</div>
@@ -84,7 +84,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="esg-metric-card gov text-center">
+                <div class="bento-card gov text-center">
                     <div class="esg-metric-icon mx-auto"><i class="bi bi-bank"></i></div>
                     <div class="esg-metric-value esg-display-gov" style="color: var(--gov-color);">--</div>
                     <div class="esg-metric-label">Governance Score</div>
@@ -95,12 +95,12 @@
 
         <div class="row g-4 mb-5">
             <div class="col-lg-5">
-                <div class="card h-100 fade-in">
-                    <div class="card-header">
+                <div class="card glass-card h-100 fade-in">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-radar"></i> ESG Radar</span>
                         <span class="badge bg-success" id="radarStockLabel">Select a stock</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                         <canvas id="esgRadarChart" data-env="0" data-social="0" data-gov="0"></canvas>
                         <p class="text-center text-secondary small mt-3 mb-0" id="radarHint">
                             <i class="bi bi-info-circle me-1"></i> Click a stock below
@@ -114,14 +114,14 @@
                 </div>
             </div>
             <div class="col-lg-7">
-                <div class="card h-100 fade-in">
-                    <div class="card-header">
+                <div class="card glass-card h-100 fade-in">
+                    <div class="card glass-card-header">
                         <span><i class="bi bi-building"></i> Available Stocks</span>
                         <span class="badge bg-info">{{ stocks|length }} companies</span>
                     </div>
-                    <div class="card-body p-0">
+                    <div class="card glass-card-body p-0">
                         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                            <table class="table-esg mb-0" id="stockTable">
+                            <table class="table table-borderless table-esg-premium mb-0" id="stockTable">
                                 <thead>
                                     <tr>
                                         <th>Ticker</th>
@@ -173,12 +173,12 @@
         </div>
 
         <!-- Watched Stocks News Section -->
-        <div class="card mb-5 fade-in" id="watchedNewsSection">
-            <div class="card-header">
+        <div class="card glass-card mb-5 fade-in" id="watchedNewsSection">
+            <div class="card glass-card-header">
                 <span><i class="bi bi-newspaper"></i> Latest News — Watched Stocks</span>
                 <span class="badge bg-info" id="watchedNewsCount">Loading...</span>
             </div>
-            <div class="card-body" id="watchedNewsContainer">
+            <div class="card glass-card-body" id="watchedNewsContainer">
                 <div class="text-center py-4 text-muted">
                     <div class="spinner-border spinner-border-sm me-2 text-esg" role="status"></div>
                     Loading news for your watched stocks...
@@ -186,11 +186,11 @@
             </div>
         </div>
 
-        <div class="card mb-5 fade-in">
-            <div class="card-header">
+        <div class="card glass-card mb-5 fade-in">
+            <div class="card glass-card-header">
                 <span><i class="bi bi-bar-chart-steps"></i> ESG Score Comparison</span>
             </div>
-            <div class="card-body">
+            <div class="card glass-card-body">
                 <canvas id="esgDistributionChart"></canvas>
             </div>
         </div>
@@ -330,9 +330,9 @@
 
             // Row 2: ESG Score Breakdown
             html += '<div class="row g-3 mb-3">';
-            html += '<div class="col-4"><div class="esg-metric-card env text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-droplet"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--env-color);">' + (esg.environmental_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Environmental</div></div></div>';
-            html += '<div class="col-4"><div class="esg-metric-card social text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-people-fill"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--social-color);">' + (esg.social_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Social</div></div></div>';
-            html += '<div class="col-4"><div class="esg-metric-card gov text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-bank"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--gov-color);">' + (esg.governance_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Governance</div></div></div>';
+            html += '<div class="col-4"><div class="bento-card env text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-droplet"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--env-color);">' + (esg.environmental_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Environmental</div></div></div>';
+            html += '<div class="col-4"><div class="bento-card social text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-people-fill"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--social-color);">' + (esg.social_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Social</div></div></div>';
+            html += '<div class="col-4"><div class="bento-card gov text-center p-2" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:32px;height:32px;font-size:0.9rem;"><i class="bi bi-bank"></i></div><div class="esg-metric-value" style="font-size:1.2rem;color:var(--gov-color);">' + (esg.governance_score||0).toFixed(1) + '</div><div class="esg-metric-label" style="font-size:0.6rem;">Governance</div></div></div>';
             html += '</div>';
 
             // Row 3: Technical Indicators + Confidence Breakdown
@@ -342,10 +342,10 @@
             var cfb = '';
             if (result.confidence_scores) {
                 cfb = '<div class="row g-1">';
-                ['Buy','Hold','Sell'].forEach(function(a) {
+                ['Buy','Sell'].forEach(function(a) {
                     var s = result.confidence_scores[a] || 0;
-                    var c = a === 'Buy' ? '#4caf50' : a === 'Hold' ? '#ff9800' : '#f44336';
-                    cfb += '<div class="col-4"><div class="text-center p-1" style="background:rgba(0,0,0,0.15);border-radius:8px;"><div class="recommendation-badge ' + a.toLowerCase() + ' mb-1" style="font-size:0.6rem;padding:0.15rem 0.5rem;display:inline-block;">' + a + '</div><div class="fw-bold" style="color:' + c + ';font-size:1rem;">' + s.toFixed(1) + '%</div><div class="progress-esg" style="height:4px;"><div class="progress-bar" style="width:' + s + '%;background:' + c + ';"></div></div></div></div>';
+                    var c = a === 'Buy' ? '#4caf50' : '#f44336';
+                    cfb += '<div class="col-6"><div class="text-center p-1" style="background:rgba(0,0,0,0.15);border-radius:8px;"><div class="recommendation-badge ' + a.toLowerCase() + ' mb-1" style="font-size:0.6rem;padding:0.15rem 0.5rem;display:inline-block;">' + a + '</div><div class="fw-bold" style="color:' + c + ';font-size:1rem;">' + s.toFixed(1) + '%</div><div class="progress-esg" style="height:4px;"><div class="progress-bar" style="width:' + s + '%;background:' + c + ';"></div></div></div></div>';
                 });
                 cfb += '</div>';
             }
@@ -353,8 +353,8 @@
             html += '</div>';
 
             // Row 4: XAI Explainable AI Section with toggle
-            html += '<div class="card mb-3" id="dashXaiCard" style="display:none;">';
-            html += '<div class="card-header py-2">';
+            html += '<div class="card glass-card mb-3" id="dashXaiCard" style="display:none;">';
+            html += '<div class="card glass-card-header py-2">';
             html += '<span><i class="bi bi-lightbulb-fill text-warning me-2"></i>Explainable AI <span class="badge bg-info ms-1" style="font-size:0.6rem;">XAI</span></span>';
             html += '<div class="d-flex align-items-center gap-2"><div class="xai-method-toggle btn-group btn-group-sm">';
             html += '<button type="button" class="xai-toggle-btn active" data-method="auto" title="Auto"><i class="bi bi-robot"></i> Auto</button>';
@@ -362,7 +362,7 @@
             html += '<button type="button" class="xai-toggle-btn" data-method="lime" title="LIME"><i class="bi bi-bar-chart-steps"></i> LIME</button>';
             html += '</div><small class="text-muted" id="dashXaiMethod"></small></div>';
             html += '</div>';
-            html += '<div class="card-body py-2"><div id="dashXaiSummary" class="mb-2 text-secondary small"></div><div id="dashXaiContributions"></div><div class="text-center mt-2"><small class="text-muted" id="dashXaiPriceImpact"></small></div></div>';
+            html += '<div class="card glass-card-body py-2"><div id="dashXaiSummary" class="mb-2 text-secondary small"></div><div id="dashXaiContributions"></div><div class="text-center mt-2"><small class="text-muted" id="dashXaiPriceImpact"></small></div></div>';
             html += '</div>';
 
             // Link to full analysis page

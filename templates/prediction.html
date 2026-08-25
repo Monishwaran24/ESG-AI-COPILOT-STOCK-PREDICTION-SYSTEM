@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Stock Prediction - AI-powered Buy/Hold/Sell recommendations">
+    <meta name="description" content="Stock Prediction - AI-powered Buy/Sell recommendations">
     <title>Prediction - ESG Stock Prediction</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
@@ -35,8 +35,8 @@
             </div>
         </nav>
 
-        <div class="card mb-4 fade-in">
-            <div class="card-body">
+        <div class="card glass-card mb-4 fade-in">
+            <div class="card glass-card-body">
                 <form id="predictionForm" method="POST" action="{{ url_for('prediction') }}">
                     <div class="row g-3 align-items-end">
                         <div class="col-md-6">
@@ -94,11 +94,11 @@
                   </div>
                 </div>
                 <div class="col-lg-4">
-                  <div class="card h-100">
-                    <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                  <div class="card glass-card h-100">
+                    <div class="card glass-card-body text-center d-flex flex-column align-items-center justify-content-center">
                       <small class="text-secondary text-uppercase mb-2 fw-bold">AI Recommendation</small>
                       <div class="recommendation-badge {{ result.recommendation.lower() }} mb-3">
-                        <i class="bi bi-{{ 'check-circle' if result.recommendation == 'Buy' else 'dash-circle' if result.recommendation == 'Hold' else 'x-circle' }}"></i> {{ result.recommendation }}
+                        <i class="bi bi-{{ 'check-circle' if result.recommendation == 'Buy' else 'x-circle' }}"></i> {{ result.recommendation }}
                       </div>
                       <div class="confidence-meter">
                         <canvas id="confidenceGauge"></canvas>
@@ -111,8 +111,8 @@
                   </div>
                 </div>
                 <div class="col-lg-4">
-                  <div class="card h-100">
-                    <div class="card-body">
+                  <div class="card glass-card h-100">
+                    <div class="card glass-card-body">
                       <small class="text-secondary text-uppercase fw-bold mb-3 d-block">AI Summary</small>
                       <div class="d-flex justify-content-between align-items-center mb-3">
                         <span class="text-secondary"><i class="bi bi-trending-up me-1"></i> Trend</span>
@@ -142,9 +142,9 @@
 
               <div class="row g-4 mb-4">
                 <div class="col-lg-6">
-                  <div class="card h-100 fade-in">
-                    <div class="card-header"><span><i class="bi bi-speedometer2"></i> Technical Indicators</span></div>
-                    <div class="card-body">
+                  <div class="card glass-card h-100 fade-in">
+                    <div class="card glass-card-header"><span><i class="bi bi-speedometer2"></i> Technical Indicators</span></div>
+                    <div class="card glass-card-body">
                       <div class="row g-3">
                         <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">{{ result.indicators.rsi }}</div><div class="metric-label">RSI (14)</div></div></div>
                         <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">{{ "%.4f"|format(result.indicators.macd) }}</div><div class="metric-label">MACD</div></div></div>
@@ -157,16 +157,16 @@
                   </div>
                 </div>
                 <div class="col-lg-6">
-                  <div class="card h-100 fade-in">
-                    <div class="card-header">
+                  <div class="card glass-card h-100 fade-in">
+                    <div class="card glass-card-header">
                       <span><i class="bi bi-flower1"></i> ESG Scores</span>
                       <span class="badge bg-{{ 'success' if result.esg_data.esg_risk == 'Low' else 'warning' if result.esg_data.esg_risk == 'Medium' else 'danger' }}">{{ result.esg_data.esg_risk }} Risk</span>
                     </div>
-                    <div class="card-body">
+                    <div class="card glass-card-body">
                       <div class="row g-3">
-                        <div class="col-4"><div class="esg-metric-card env text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-droplet"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--env-color);">{{ "%.1f"|format(result.esg_data.environmental_score) }}</div><div class="esg-metric-label" style="font-size:0.7rem;">Environmental</div></div></div>
-                        <div class="col-4"><div class="esg-metric-card social text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-people-fill"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--social-color);">{{ "%.1f"|format(result.esg_data.social_score) }}</div><div class="esg-metric-label" style="font-size:0.7rem;">Social</div></div></div>
-                        <div class="col-4"><div class="esg-metric-card gov text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-bank"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--gov-color);">{{ "%.1f"|format(result.esg_data.governance_score) }}</div><div class="esg-metric-label" style="font-size:0.7rem;">Governance</div></div></div>
+                        <div class="col-4"><div class="bento-card env text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-droplet"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--env-color);">{{ "%.1f"|format(result.esg_data.environmental_score) }}</div><div class="esg-metric-label" style="font-size:0.7rem;">Environmental</div></div></div>
+                        <div class="col-4"><div class="bento-card social text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-people-fill"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--social-color);">{{ "%.1f"|format(result.esg_data.social_score) }}</div><div class="esg-metric-label" style="font-size:0.7rem;">Social</div></div></div>
+                        <div class="col-4"><div class="bento-card gov text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-bank"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--gov-color);">{{ "%.1f"|format(result.esg_data.governance_score) }}</div><div class="esg-metric-label" style="font-size:0.7rem;">Governance</div></div></div>
                       </div>
                       <hr class="border-secondary my-3">
                       <div class="d-flex justify-content-between mb-2"><span class="text-secondary small">Overall ESG Score</span><span class="fw-bold text-esg">{{ "%.1f"|format(result.esg_data.esg_score) }} / 100</span></div>
@@ -177,8 +177,8 @@
                 </div>
               </div>
 
-              <div class="card mb-4 fade-in">
-                <div class="card-header">
+              <div class="card glass-card mb-4 fade-in chart-card-premium">
+                <div class="card glass-card-header">
                   <span><i class="bi bi-candlestick-chart-fill"></i> {{ result.ticker }} - Candlestick Chart</span>
                   <div class="d-flex align-items-center gap-2">
                     <small class="text-muted" id="candlePatternBadge"></small>
@@ -186,13 +186,13 @@
                     <span class="recommendation-badge {{ result.recommendation.lower() }}" style="font-size:0.75rem;padding:0.25rem 0.75rem;">{{ result.recommendation }}</span>
                   </div>
                 </div>
-                <div class="card-body">
+                <div class="card glass-card-body">
                   <div class="candle-chart-wrap">
-                    <div class="chart-toolbar d-flex justify-content-end gap-2 mb-2">
-                      <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="1mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">1M</button>
-                      <button class="btn-outline-esg btn-sm candle-timeframe active" data-tf="3mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">3M</button>
-                      <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="6mo" style="padding:0.2rem 0.5rem;font-size:0.7rem;">6M</button>
-                      <button class="btn-outline-esg btn-sm candle-timeframe" data-tf="1y" style="padding:0.2rem 0.5rem;font-size:0.7rem;">1Y</button>
+                    <div class="chart-toolbar d-flex justify-content-end gap-2 mb-2 chart-toolbar-premium">
+                      <button class="btn-outline-esg btn-sm candle-timeframe candle-timeframe-premium" data-tf="1mo">1M</button>
+                      <button class="btn-outline-esg btn-sm candle-timeframe candle-timeframe-premium active" data-tf="3mo">3M</button>
+                      <button class="btn-outline-esg btn-sm candle-timeframe candle-timeframe-premium" data-tf="6mo">6M</button>
+                      <button class="btn-outline-esg btn-sm candle-timeframe candle-timeframe-premium" data-tf="1y">1Y</button>
                     </div>
                     <div id="tvCandleChart" class="candle-chart-main" style="width:100%;height:380px;"></div>
                     <div id="tvVolumeChart" class="candle-chart-volume" style="width:100%;height:80px;"></div>
@@ -204,17 +204,17 @@
                 </div>
               </div>
 
-              <div class="card mb-4 fade-in">
-                <div class="card-header"><span><i class="bi bi-pie-chart-fill"></i> Confidence Breakdown</span></div>
-                <div class="card-body">
+              <div class="card glass-card mb-4 fade-in">
+                <div class="card glass-card-header"><span><i class="bi bi-pie-chart-fill"></i> Confidence Breakdown</span></div>
+                <div class="card glass-card-body">
                   <div class="row g-4">
-                    {% for action in ['Buy', 'Hold', 'Sell'] %}
+                    {% for action in ['Buy', 'Sell'] %}
                     {% set score = result.confidence_scores.get(action, 0) %}
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                       <div class="text-center p-3" style="background:rgba(0,0,0,0.2);border-radius:12px;">
                         <div class="recommendation-badge {{ action.lower() }} mb-2" style="font-size:0.85rem;">{{ action }}</div>
-                        <div class="display-6 fw-bold" style="color:{% if action == 'Buy' %}#4caf50{% elif action == 'Hold' %}#ff9800{% else %}#f44336{% endif %};">{{ "%.1f"|format(score) }}%</div>
-                        <div class="progress-esg mt-2" style="height:6px;"><div class="progress-bar" style="width:{{ score }}%;background:{% if action == 'Buy' %}#4caf50{% elif action == 'Hold' %}#ff9800{% else %}#f44336{% endif %};"></div></div>
+                        <div class="display-6 fw-bold" style="color:{% if action == 'Buy' %}#4caf50{% else %}#f44336{% endif %};">{{ "%.1f"|format(score) }}%</div>
+                        <div class="progress-esg mt-2" style="height:6px;"><div class="progress-bar" style="width:{{ score }}%;background:{% if action == 'Buy' %}#4caf50{% else %}#f44336{% endif %};"></div></div>
                       </div>
                     </div>
                     {% endfor %}
@@ -223,12 +223,12 @@
               </div>
 
               {% if result.ai_explanation %}
-              <div class="card mb-4 fade-in">
-                <div class="card-header">
+              <div class="card glass-card mb-4 fade-in">
+                <div class="card glass-card-header">
                   <span><i class="bi bi-robot"></i> AI Analysis</span>
                   <span class="badge bg-{{ 'success' if result.ai_explanation.verdict == 'Buy' else 'danger' if result.ai_explanation.verdict == 'Sell' else 'warning' }}">{{ result.ai_explanation.verdict }}</span>
                 </div>
-                <div class="card-body">
+                <div class="card glass-card-body">
                   <p class="mb-3">{{ result.ai_explanation.summary }}</p>
                   {% if result.ai_explanation.reasons %}
                   <ul class="list-group list-group-flush mt-3">
@@ -244,8 +244,8 @@
               <!-- === News Sentiment Card === -->
               {% set ns = result.ai_explanation.news_sentiment if result.ai_explanation else None %}
               {% if ns and ns.article_count > 0 %}
-              <div class="card mb-4 fade-in news-sentiment-card">
-                <div class="card-header">
+              <div class="card glass-card mb-4 fade-in news-sentiment-card">
+                <div class="card glass-card-header">
                   <span><i class="bi bi-newspaper"></i> News Sentiment</span>
                   <div class="d-flex align-items-center gap-2">
                     <span class="sentiment-summary-badge {{ ns.sentiment_label.lower() }}">
@@ -255,7 +255,7 @@
                     <span class="text-muted small">{{ ns.article_count }} articles</span>
                   </div>
                 </div>
-                <div class="card-body">
+                <div class="card glass-card-body">
                   <!-- Sentiment Breakdown -->
                   <div class="news-breakdown-row mb-3">
                     <div class="breakdown-item positive">
@@ -311,8 +311,8 @@
               <!-- === End News Sentiment Card === -->
 
               <!-- XAI Explainable AI Section -->
-              <div class="card mb-4 fade-in" id="xaiCard" style="display:none;">
-                <div class="card-header">
+              <div class="card glass-card mb-4 fade-in" id="xaiCard" style="display:none;">
+                <div class="card glass-card-header">
                   <span>
                     <i class="bi bi-lightbulb-fill text-warning me-2"></i>
                     Explainable AI
@@ -333,7 +333,7 @@
                     <small class="text-muted" id="xaiMethod"></small>
                   </div>
                 </div>
-                <div class="card-body">
+                <div class="card glass-card-body">
                   <div id="xaiSummary" class="mb-4 text-secondary small"></div>
                   <div id="xaiContributions"></div>
                   <div class="text-center mt-3">
@@ -346,7 +346,7 @@
             <div class="text-center py-5 fade-in">
                 <i class="bi bi-graph-up-arrow" style="font-size: 4rem; color: var(--esg-primary-light); opacity: 0.5;"></i>
                 <h4 class="mt-3 text-secondary">Select a stock and click Predict</h4>
-                <p class="text-muted">Get AI-powered Buy, Hold, or Sell recommendations based on <br>technical analysis and ESG scores.</p>
+                <p class="text-muted">Get AI-powered Buy or Sell recommendations based on <br>technical analysis and ESG scores.</p>
                 <div class="row mt-4 g-3">
                     <div class="col-md-4 offset-md-2">
                         <a href="{{ url_for('prediction', ticker='AAPL') }}" class="btn-esg w-100"><i class="bi bi-apple me-1"></i> Predict AAPL</a>

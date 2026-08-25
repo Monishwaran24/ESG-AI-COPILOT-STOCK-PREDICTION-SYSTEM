@@ -218,7 +218,7 @@
         var email = data.email;
         var emailHtml = '<div class="d-flex align-items-center gap-2 mb-3">' +
             '<span class="status-dot ' + (email.configured ? 'green' : 'red') + '"></span>' +
-            '<span class="card-value ' + (email.configured ? 'green' : 'red') + '">' +
+            '<span class="card glass-card-value ' + (email.configured ? 'green' : 'red') + '">' +
             (email.configured ? 'Configured' : 'Not Configured') + '</span></div>';
         if (email.configured) {
             emailHtml += '<div style="font-size:0.85rem;color:var(--text-secondary);">' +
@@ -341,7 +341,7 @@
             '<div class="mb-2 d-flex align-items-center gap-2">' +
             '<span class="status-dot ' + (model.loaded ? 'green' : 'yellow') + '"></span>' +
             '<strong style="color:var(--text-primary);">' + (model.loaded ? model.name : 'Not Trained') + '</strong></div>' +
-            '<div class="mb-1"><strong>Accuracy:</strong> <span class="card-value ' + accColor + '">' + model.accuracy + '%</span></div>' +
+            '<div class="mb-1"><strong>Accuracy:</strong> <span class="card glass-card-value ' + accColor + '">' + model.accuracy + '%</span></div>' +
             '<div><strong>Trained:</strong> ' + (model.trained_on || 'N/A') + '</div></div>';
     }
 
