@@ -10,7 +10,7 @@ if PROJECT_ROOT not in sys.path:
 
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 MODEL_DIR = os.path.join(PROJECT_ROOT, 'model')
-MODEL_PATH = os.path.join(MODEL_DIR, 'model.pkl')
+MODEL_PATH = os.path.join(MODEL_DIR, 'model.pt')
 SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
 ENCODER_PATH = os.path.join(MODEL_DIR, 'label_encoder.pkl')
 METADATA_PATH = os.path.join(MODEL_DIR, 'model_metadata.json')
@@ -96,16 +96,56 @@ def get_nse_symbol(ticker):
     """Get NSE symbol for Indian tickers."""
     return indianapi_get_nse_symbol(ticker)
 
+import torch
+import torch.nn as nn
+
+class PyTorchLSTM(torch.nn.Module):
+    def __init__(self, input_size, hidden_size=64, num_layers=2, num_classes=3, dropout=0.5):
+        super(PyTorchLSTM, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        # Bi-directional LSTM for stronger sequence modeling
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
+                            batch_first=True, dropout=dropout if num_layers > 1 else 0,
+                            bidirectional=True)
+        
+        # Since it's bidirectional, hidden_size is multiplied by 2
+        self.bn1 = nn.BatchNorm1d(hidden_size * 2)
+        self.fc1 = nn.Linear(hidden_size * 2, hidden_size)
+        self.bn2 = nn.BatchNorm1d(hidden_size)
+        self.relu = nn.LeakyReLU()
+        self.dropout = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        out = out[:, -1, :]
+        out = self.bn1(out)
+        out = self.fc1(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+        out = self.dropout(out)
+        out = self.fc2(out)
+        return out
+
 def load_model():
     global _model_cache, _scaler_cache, _encoder_cache, _metadata_cache
     if _model_cache is not None:
         return _model_cache, _scaler_cache, _encoder_cache, _metadata_cache
     try:
-        _model_cache = joblib.load(MODEL_PATH)
+        import torch
         _scaler_cache = joblib.load(SCALER_PATH)
         _encoder_cache = joblib.load(ENCODER_PATH)
         with open(METADATA_PATH, 'r') as f:
             _metadata_cache = json.load(f)
+            
+        # Initialize model architecture and load weights
+        input_size = _metadata_cache.get('feature_count', 36)
+        _model_cache = PyTorchLSTM(input_size=input_size)
+        _model_cache.load_state_dict(torch.load(MODEL_PATH))
+        _model_cache.eval()
+        
         return _model_cache, _scaler_cache, _encoder_cache, _metadata_cache
     except Exception as e:
         print(f"[X] Error loading model: {e}")
@@ -266,23 +306,27 @@ def calculate_indicators(df):
         return None
     
     c, h, l, v = df['Close'], df['High'], df['Low'], df['Volume']
+    
+    # ====================== BASE INDICATORS ======================
+    df['SMA_10'] = c.rolling(10, min_periods=5).mean() / c - 1
+    df['SMA_30'] = c.rolling(30, min_periods=15).mean() / c - 1
+    df['EMA_10'] = c.ewm(span=10, adjust=False, min_periods=5).mean() / c - 1
+    df['EMA_30'] = c.ewm(span=30, adjust=False, min_periods=15).mean() / c - 1
+    
     delta = c.diff()
     gain = delta.where(delta > 0, 0.0)
     loss = (-delta.where(delta < 0, 0.0))
-    
-    # ====================== BASE INDICATORS ======================
-    df['SMA_10'] = c.rolling(10, min_periods=5).mean()
-    df['SMA_30'] = c.rolling(30, min_periods=15).mean()
-    df['EMA_10'] = c.ewm(span=10, adjust=False, min_periods=5).mean()
-    df['EMA_30'] = c.ewm(span=30, adjust=False, min_periods=15).mean()
     avg_gain = gain.rolling(14, min_periods=14).mean()
     avg_loss = loss.rolling(14, min_periods=14).mean()
     rs = avg_gain / avg_loss.replace(0, np.nan)
     df['RSI_14'] = 100 - (100 / (1 + rs))
+    
     ema_12 = c.ewm(span=12, adjust=False, min_periods=12).mean()
     ema_26 = c.ewm(span=26, adjust=False, min_periods=26).mean()
-    df['MACD'] = ema_12 - ema_26
-    df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False, min_periods=9).mean()
+    macd_raw = ema_12 - ema_26
+    macd_signal_raw = macd_raw.ewm(span=9, adjust=False, min_periods=9).mean()
+    df['MACD'] = macd_raw / c
+    df['MACD_Signal'] = macd_signal_raw / c
     df['MACD_Histogram'] = df['MACD'] - df['MACD_Signal']
     bb_mid = c.rolling(20, min_periods=20).mean()
     bb_std = c.rolling(20, min_periods=20).std()
@@ -395,6 +439,15 @@ def calculate_indicators(df):
     df['CORR_CLOSE_VOL'] = c.rolling(20, min_periods=20).corr(v)
     df['CORR_HIGH_LOW'] = h.rolling(20, min_periods=20).corr(l)
 
+    # Normalize absolute price features to be scale-invariant
+    absolute_price_cols = [
+        'SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'SMA_50', 'EMA_50', 'SMA_200', 'EMA_200',
+        'MACD', 'MACD_Signal', 'MACD_Histogram', 'MIDPOINT_10', 'MIDPRICE_10', 'KAMA_10', 'TRANGE_14'
+    ]
+    for col in absolute_price_cols:
+        if col in df.columns:
+            df[col] = df[col] / c
+
     latest = df.iloc[-1:]
     indicators_obj = {}
     tech_cols = [f for f in feature_cols if f not in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score')]
@@ -417,7 +470,8 @@ def calculate_indicators(df):
         'current_volume': int(df['Volume'].iloc[-1]),
         'price_change': float(df['Close'].pct_change().iloc[-1] * 100),
         'historical_prices': historical_prices,
-        'historical_dates': historical_dates
+        'historical_dates': historical_dates,
+        'df': df
     }
 
 _esg_cache_df = None
@@ -704,22 +758,37 @@ def predict_stock(ticker):
                 indicators['Social_Score'] = esg_data['social_score']
                 indicators['Governance_Score'] = esg_data['governance_score']
 
-                # Use only base features (36) that the model was trained on
-                feature_vector = []
-                for col in BASE_FEATURES:
-                    if col in indicators:
-                        feature_vector.append(indicators[col])
-                    else:
-                        feature_vector.append(0.0)
-
-                feature_vector = np.array(feature_vector).reshape(1, -1)
-                feature_scaled = scaler.transform(feature_vector)
-
-                prediction = model.predict(feature_scaled)
-                if hasattr(model, 'predict_proba'):
-                    prediction_proba = model.predict_proba(feature_scaled)
+                # Get sequence length and features used from metadata
+                seq_len = metadata.get('sequence_length', 14)
+                model_features = metadata.get('features', BASE_FEATURES)
+                df_calc = result['df']
+                
+                if len(df_calc) >= seq_len:
+                    latest_seq = df_calc.iloc[-seq_len:]
+                    seq_features = []
+                    
+                    for i in range(seq_len):
+                        row = latest_seq.iloc[i]
+                        vec = []
+                        for col in model_features:
+                            if col in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score'):
+                                vec.append(indicators[col] / 100.0) # ESG scores are constant for the stock
+                            else:
+                                vec.append(float(row[col]) if pd.notna(row[col]) else 0.0)
+                        seq_features.append(vec)
+                        
+                    seq_array = np.array(seq_features)
+                    feature_scaled = scaler.transform(seq_array)
+                    feature_scaled = feature_scaled.reshape(1, seq_len, -1)
+                    
+                    import torch
+                    with torch.no_grad():
+                        tensor_scaled = torch.tensor(feature_scaled, dtype=torch.float32)
+                        prediction_logits = model(tensor_scaled)
+                        prediction_proba = torch.nn.functional.softmax(prediction_logits, dim=1).numpy()
+                        prediction = np.argmax(prediction_proba, axis=1)
                 else:
-                    prediction_proba = np.array([[0.33, 0.34, 0.33]])
+                    raise ValueError(f"Not enough data for sequence length {seq_len}")
 
                 predicted_class = label_encoder.inverse_transform(prediction)[0]
 

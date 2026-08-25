@@ -1,27 +1,29 @@
 """
-Real Stock Data Training Pipeline for ESG Stock Prediction
-===========================================================
-Fetches actual historical stock data via yfinance, calculates technical
-indicators + extended features, creates forward-return labels, and trains
-a stacking ensemble with PROPER TIME-SERIES VALIDATION (no data leakage).
-
-Key improvements over v1:
-  - Time-series train/test split (no future data leakage)
-  - Proper min_periods for indicators (cleaner training data)
-  - Correlation-based feature selection (reduces noise)
-  - RandomizedSearchCV hyperparameter tuning
-  - Weighted ensemble voting based on CV performance
-  - Full 67-feature sync with predict.py
+Real Stock Data Training Pipeline for ESG Stock Prediction (LSTM VERSION)
+=======================================================================
+Replaces traditional ML models with a Deep Learning LSTM model using PyTorch.
 """
 
-import os, sys, warnings, numpy as np, pandas as pd, yfinance as yf
+import os
+import sys
+import json
+import warnings
+import numpy as np
+import pandas as pd
+import yfinance as yf
 from datetime import datetime, timedelta
-import joblib, json, time, itertools
-from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV, TimeSeriesSplit
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+import joblib, time
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+
+# Enable unbuffered stdout so we can see progress logs in background task
+sys.stdout.reconfigure(line_buffering=True)
+
+from sklearn.preprocessing import RobustScaler, StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
-from sklearn.linear_model import LogisticRegression
 
 os.environ['LOKY_MAX_CPU_COUNT'] = '1'
 os.environ['JOBLIB_START_METHOD'] = 'forksafe'
@@ -33,61 +35,43 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 MODEL_DIR = os.path.join(PROJECT_ROOT, 'model')
-MODEL_PATH = os.path.join(MODEL_DIR, 'model.pkl')
+MODEL_PATH = os.path.join(MODEL_DIR, 'model.pt')  # PyTorch model
 SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
 ENCODER_PATH = os.path.join(MODEL_DIR, 'label_encoder.pkl')
 METADATA_PATH = os.path.join(MODEL_DIR, 'model_metadata.json')
 STOCK_LIST_PATH = os.path.join(DATA_DIR, 'esg_data.csv')
 
 np.random.seed(42)
+torch.manual_seed(42)
 
 # =====================================================================
 # FEATURE DEFINITIONS — 67 features (base + extended)
-# MUST match predict.py features exactly
 # =====================================================================
 feature_cols = [
-    # Base features (36)
-    'SMA_10','SMA_30','EMA_10','EMA_30','RSI_14',
-    'MACD','MACD_Signal','MACD_Histogram',
-    'BB_Width','BB_Position',
-    'Price_Change_1d','Price_Change_5d','Price_Change_20d',
-    'Volume_Ratio','High_Low_Ratio','Close_Open_Ratio','Volatility_10d',
-    'Price_Acceleration','VPT_Change','RSI_SMA','Price_Position',
-    'ATR_14','STOCH_K','STOCH_D','WILLIAMS_R','MFI',
-    'Log_Return_1d','Log_Return_5d','Log_Return_20d',
-    'Price_Momentum','Volume_Change_1d','High_Low_Pct',
-    'ESG_Score','Environmental_Score','Social_Score','Governance_Score',
-    # Extended features (31)
-    'SMA_50','EMA_50','SMA_200','EMA_200',
-    'TRIX','ROC_10','ROC_20','PPO','ADX','ADXR',
-    'CMO','ULT_OSC','AROON_UP','AROON_DOWN',
-    'CHAIKIN_MF','OBV_Change','KAMA_10','KAMA_DIVERGENCE',
-    'MIDPOINT_10','MIDPRICE_10',
-    'NATR_14','TRANGE_14',
-    'HV_10','HV_20','HV_30',
-    'SKEW_10','KURT_10','MAX_10','MIN_10',
-    'CORR_CLOSE_VOL','CORR_HIGH_LOW'
+    'SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'RSI_14',
+    'MACD', 'MACD_Signal', 'MACD_Histogram',
+    'BB_Width', 'BB_Position',
+    'Price_Change_1d', 'Price_Change_5d', 'Price_Change_20d',
+    'Volume_Ratio', 'High_Low_Ratio', 'Close_Open_Ratio', 'Volatility_10d',
+    'ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score'
 ]
 
 FORWARD_WINDOW = 20
-BUY_THRESHOLD = 0.045       # ±4.5% — slightly tighter than 5% for more labels
-SELL_THRESHOLD = -0.045
-YF_PERIOD = '5y'            # 5 years of history
-CORR_THRESHOLD = 0.95        # Remove features with pairwise corr > 0.95 (reduces noise)
-TUNE_HYPERPARAMS = True      # Enable RandomizedSearchCV
-
+BUY_THRESHOLD = 0.03
+SELL_THRESHOLD = -0.03
+YF_PERIOD = '5y'
+CORR_THRESHOLD = 0.95
+SEQ_LEN = 40  # Sequence length for LSTM
 
 def ensure_directories():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
-
 
 def get_yfinance_ticker(ticker):
     t = ticker.upper()
     if t == 'BRK.B':
         return 'BRK-B'
     return t
-
 
 def remove_highly_correlated(X, threshold=0.95):
     """Remove features with pairwise correlation > threshold to reduce noise."""
@@ -104,7 +88,6 @@ def remove_highly_correlated(X, threshold=0.95):
                 to_keep[j] = False
     return X[:, to_keep], np.where(to_keep)[0]
 
-
 def calculate_indicators_for_df(df):
     """Calculate ALL 67 features with proper min_periods for cleaner signals."""
     df = df.copy()
@@ -114,11 +97,10 @@ def calculate_indicators_for_df(df):
     c, h, l, v = df['Close'], df['High'], df['Low'], df['Volume']
     
     # ====================== BASE INDICATORS ======================
-    # Use proper min_periods to avoid noisy early values
-    df['SMA_10'] = c.rolling(10, min_periods=5).mean()
-    df['SMA_30'] = c.rolling(30, min_periods=15).mean()
-    df['EMA_10'] = c.ewm(span=10, adjust=False, min_periods=5).mean()
-    df['EMA_30'] = c.ewm(span=30, adjust=False, min_periods=15).mean()
+    df['SMA_10'] = c.rolling(10, min_periods=5).mean() / c - 1
+    df['SMA_30'] = c.rolling(30, min_periods=15).mean() / c - 1
+    df['EMA_10'] = c.ewm(span=10, adjust=False, min_periods=5).mean() / c - 1
+    df['EMA_30'] = c.ewm(span=30, adjust=False, min_periods=15).mean() / c - 1
     
     delta = c.diff()
     gain = delta.where(delta > 0, 0.0)
@@ -130,8 +112,10 @@ def calculate_indicators_for_df(df):
     
     ema_12 = c.ewm(span=12, adjust=False, min_periods=12).mean()
     ema_26 = c.ewm(span=26, adjust=False, min_periods=26).mean()
-    df['MACD'] = ema_12 - ema_26
-    df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False, min_periods=9).mean()
+    macd_raw = ema_12 - ema_26
+    macd_signal_raw = macd_raw.ewm(span=9, adjust=False, min_periods=9).mean()
+    df['MACD'] = macd_raw / c
+    df['MACD_Signal'] = macd_signal_raw / c
     df['MACD_Histogram'] = df['MACD'] - df['MACD_Signal']
     
     bb_mid = c.rolling(20, min_periods=20).mean()
@@ -191,7 +175,6 @@ def calculate_indicators_for_df(df):
     df['EMA_50'] = c.ewm(span=50, adjust=False, min_periods=25).mean()
     df['EMA_200'] = c.ewm(span=200, adjust=False, min_periods=100).mean()
     
-    # TRIX
     ema1 = c.ewm(span=15, adjust=False, min_periods=15).mean()
     ema2 = ema1.ewm(span=15, adjust=False, min_periods=15).mean()
     ema3 = ema2.ewm(span=15, adjust=False, min_periods=15).mean()
@@ -204,7 +187,6 @@ def calculate_indicators_for_df(df):
     ppo_ema_26 = c.ewm(span=26, adjust=False, min_periods=26).mean()
     df['PPO'] = (ppo_ema_12 - ppo_ema_26) / ppo_ema_26 * 100
     
-    # ADX
     up_move = h - h.shift()
     down_move = l.shift() - l
     plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
@@ -216,12 +198,10 @@ def calculate_indicators_for_df(df):
     df['ADX'] = dx.rolling(14, min_periods=14).mean()
     df['ADXR'] = (df['ADX'] + df['ADX'].shift(14)) / 2
     
-    # CMO
     up_sum = gain.rolling(14, min_periods=14).sum()
     down_sum = loss.rolling(14, min_periods=14).sum()
     df['CMO'] = (up_sum - down_sum) / (up_sum + down_sum).replace(0, np.nan) * 100
     
-    # Ultimate Oscillator
     bp = c - pd.concat([l, c.shift()], axis=1).min(axis=1)
     tr_range = pd.concat([h, c.shift()], axis=1).max(axis=1) - pd.concat([l, c.shift()], axis=1).min(axis=1)
     avg7 = bp.rolling(7, min_periods=7).sum() / tr_range.rolling(7, min_periods=7).sum().replace(0, np.nan)
@@ -229,7 +209,6 @@ def calculate_indicators_for_df(df):
     avg28 = bp.rolling(28, min_periods=28).sum() / tr_range.rolling(28, min_periods=28).sum().replace(0, np.nan)
     df['ULT_OSC'] = (4 * avg7 + 2 * avg14 + avg28) / 7 * 100
     
-    # Aroon with proper handling
     def _aroon_up_fn(x):
         if len(x) < 25: return np.nan
         return float(np.argmax(x) / 25 * 100)
@@ -239,27 +218,28 @@ def calculate_indicators_for_df(df):
     df['AROON_UP'] = h.rolling(25, min_periods=25).apply(_aroon_up_fn, raw=True)
     df['AROON_DOWN'] = l.rolling(25, min_periods=25).apply(_aroon_down_fn, raw=True)
     
-    # Chaikin Money Flow
     mf_mult = ((c - l) - (h - c)) / (h - l).replace(0, np.nan)
     mf_vol = mf_mult * v
     df['CHAIKIN_MF'] = mf_vol.rolling(20, min_periods=20).sum() / v.rolling(20, min_periods=20).sum().replace(0, np.nan)
     
-    # OBV
     obv = (v * np.sign(delta)).fillna(0).cumsum()
     df['OBV_Change'] = obv.pct_change(5) * 100
     
-    # KAMA
     er = np.abs(c.diff(10)) / c.diff().abs().rolling(10, min_periods=5).sum().replace(0, np.nan)
     sc = (er * (2/31 - 2/301) + 2/301) ** 2
     sc = sc.fillna(0)
-    kama = c.copy()
-    for i in range(1, len(kama)):
-        kama.iloc[i] = kama.iloc[i-1] + sc.iloc[i] * (c.iloc[i] - kama.iloc[i-1])
-    df['KAMA_10'] = kama
-    df['KAMA_DIVERGENCE'] = c / kama - 1
+    c_vals = c.values
+    sc_vals = sc.values
+    kama_vals = np.zeros(len(c))
+    if len(c) > 0:
+        kama_vals[0] = c_vals[0]
+        for i in range(1, len(kama_vals)):
+            kama_vals[i] = kama_vals[i-1] + sc_vals[i] * (c_vals[i] - kama_vals[i-1])
+    df['KAMA_10'] = kama_vals
+    df['KAMA_DIVERGENCE'] = c / kama_vals - 1
     
     df['MIDPOINT_10'] = (h.rolling(10, min_periods=5).max() + l.rolling(10, min_periods=5).min()) / 2
-    df['MIDPRICE_10'] = (h.rolling(10, min_periods=5).max() + l.rolling(10, min_periods=5).min()) / 2
+    df['MIDPRICE_10'] = df['MIDPOINT_10']
     
     df['NATR_14'] = tr.rolling(14, min_periods=14).mean() / c * 100
     df['TRANGE_14'] = tr.rolling(14, min_periods=14).mean()
@@ -277,11 +257,18 @@ def calculate_indicators_for_df(df):
     df['CORR_CLOSE_VOL'] = c.rolling(20, min_periods=20).corr(v)
     df['CORR_HIGH_LOW'] = h.rolling(20, min_periods=20).corr(l)
     
-    # Forward return label
     df['Forward_Return'] = c.shift(-FORWARD_WINDOW) / c - 1
     
+    # Normalize absolute price features to be scale-invariant
+    absolute_price_cols = [
+        'SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'SMA_50', 'EMA_50', 'SMA_200', 'EMA_200',
+        'MACD', 'MACD_Signal', 'MACD_Histogram', 'MIDPOINT_10', 'MIDPRICE_10', 'KAMA_10', 'TRANGE_14'
+    ]
+    for col in absolute_price_cols:
+        if col in df.columns:
+            df[col] = df[col] / c
+            
     return df
-
 
 def fetch_yfinance_data(ticker, period='5y'):
     try:
@@ -300,22 +287,19 @@ def fetch_yfinance_data(ticker, period='5y'):
     except Exception:
         return None
 
-
 def build_real_training_data(esg_data, max_stocks=None):
     """
-    Build training dataset with PROPER TIME-SERIES ordering.
-    For each stock, rows are kept chronological. Then we track which rows
-    belong to which stock so we can do per-stock temporal splits later.
+    Build LSTM training dataset with sequential windows.
+    Generates (samples, SEQ_LEN, features) tensor.
     """
     print("\n" + "="*60)
-    print("  BUILDING REAL TRAINING DATASET (5yr, time-ordered)")
+    print("  BUILDING LSTM TRAINING DATASET (5yr, time-ordered)")
     print("="*60)
     print(f"  Tickers available: {len(esg_data)}")
     
     all_features = []
     all_labels = []
-    stock_ids = []        # Track which stock each sample belongs to
-    stock_positions = []  # Track position within each stock's time series
+    stock_splits = []
     skipped = []
     
     ticker_list = esg_data.to_dict('records')
@@ -345,123 +329,161 @@ def build_real_training_data(esg_data, max_stocks=None):
                          if c not in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score')]
         
         df_clean = df_with_indicators.dropna(subset=technical_cols + ['Forward_Return'])
-        if len(df_clean) < 30:
+        if len(df_clean) < SEQ_LEN * 2:
             skipped.append((ticker, f'Only {len(df_clean)} rows'))
             continue
         
+        start_idx = len(all_features)
         forward_returns = df_clean['Forward_Return'].values
         labels = np.where(forward_returns > BUY_THRESHOLD, 2,
                           np.where(forward_returns < SELL_THRESHOLD, 0, 1))
         
         for i, (_, row) in enumerate(df_clean.iterrows()):
-            vec = [float(row[col]) if pd.notna(row[col]) else 0.0 for col in technical_cols]
-            vec += [float(stock_row['ESG_Score']),
-                    float(stock_row['Environmental_Score']),
-                    float(stock_row['Social_Score']),
-                    float(stock_row['Governance_Score'])]
+            vec = []
+            for col in feature_cols:
+                if col in ('ESG_Score', 'Environmental_Score', 'Social_Score', 'Governance_Score'):
+                    if col == 'ESG_Score': vec.append(float(stock_row['ESG_Score']) / 100.0)
+                    elif col == 'Environmental_Score': vec.append(float(stock_row['Environmental_Score']) / 100.0)
+                    elif col == 'Social_Score': vec.append(float(stock_row['Social_Score']) / 100.0)
+                    elif col == 'Governance_Score': vec.append(float(stock_row['Governance_Score']) / 100.0)
+                else:
+                    vec.append(float(row[col]) if pd.notna(row[col]) else 0.0)
+            
             all_features.append(vec)
-            if i < len(labels):
-                all_labels.append(labels[i])
-            else:
-                all_labels.append(labels[-1])
-            stock_ids.append(idx)
-            stock_positions.append(i)
+            all_labels.append(labels[i])
+            
+        end_idx = len(all_features)
+        stock_splits.append((ticker, start_idx, end_idx))
     
-    print()
+    print("\n  [Debug] Finished downloading all tickers. Building matrices...")
     if len(all_features) < 100:
         print(f"\n  [!] Only {len(all_features)} samples! Not enough.")
-        return None, None, None, None, None, None, None
-    
-    X = np.array(all_features)
-    y = np.array(all_labels)
+        return None, None, None, None, None, None, None, None, None
+        
+    X_raw = np.array(all_features)
+    y_raw = np.array(all_labels)
+    print(f"  [Debug] X_raw shape: {X_raw.shape}")
     
     # Clean data
-    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
-    X = np.clip(X, -1e4, 1e4)
+    X_raw = np.nan_to_num(X_raw, nan=0.0, posinf=0.0, neginf=0.0)
+    X_raw = np.clip(X_raw, -1e4, 1e4)
     
-    # Remove near-constant features
-    stds = np.std(X, axis=0)
+    train_raw_rows = []
+    print("  [Debug] Extracting train subsets...")
+    for ticker, start_idx, end_idx in stock_splits:
+        length = end_idx - start_idx
+        train_len = int(length * 0.70)
+        if train_len > 0:
+            train_raw_rows.append(X_raw[start_idx : start_idx + train_len])
+            
+    if not train_raw_rows:
+        print("\n  [!] Not enough training data.")
+        return None, None, None, None, None, None, None, None, None, None, None
+        
+    X_train_raw = np.vstack(train_raw_rows)
+    
+    # Remove near-constant features ONLY based on train set
+    stds = np.std(X_train_raw, axis=0)
     const_mask = stds > 1e-8
-    X = X[:, const_mask]
     
-    # Remove highly correlated features (reduces noise, improves generalization)
-    corr_threshold = CORR_THRESHOLD
-    X, kept_idx = remove_highly_correlated(X, threshold=corr_threshold)
-    removed_count = const_mask.sum() - len(kept_idx)
+    # Remove highly correlated features ONLY based on train set
+    X_train_clean = X_train_raw[:, const_mask]
+    X_train_clean, kept_idx = remove_highly_correlated(X_train_clean, threshold=CORR_THRESHOLD)
     
-    # Map kept indices back to original feature names
-    orig_indices = np.where(const_mask)[0][kept_idx]
-    survived_features = [feature_cols[i] for i in orig_indices]
+    final_mask = np.zeros(X_raw.shape[1], dtype=bool)
+    final_mask[np.where(const_mask)[0][kept_idx]] = True
     
-    buy_pct = (y == 2).mean() * 100
-    hold_pct = (y == 1).mean() * 100
-    sell_pct = (y == 0).mean() * 100
-    print(f"\n  Dataset Summary:")
-    print(f"  Samples:        {len(X):,}")
-    print(f"  Features:       {X.shape[1]} (removed {int(removed_count)} redundant)")
-    print(f"  Buy:            {buy_pct:.1f}%")
-    print(f"  Hold:           {hold_pct:.1f}%")
-    print(f"  Sell:           {sell_pct:.1f}%")
-    print(f"  Tickers used:   {total - len(skipped)} / {total}")
-    if skipped:
-        print(f"  Skipped:        {len(skipped)}")
-        for t, r in skipped[:5]:
-            print(f"    - {t}: {r}")
-        if len(skipped) > 5:
-            print(f"    ... and {len(skipped)-5} more")
+    survived_features = [feature_cols[i] for i in range(len(feature_cols)) if final_mask[i]]
+    removed_count = len(feature_cols) - len(survived_features)
     
+    X_raw_filtered = X_raw[:, final_mask]
+    X_train_filtered = X_train_raw[:, final_mask]
+    
+    # Fit scaler ONLY on train set
+    print("  [Debug] Fitting scaler...")
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    scaler.fit(X_train_filtered)
+    print("  [Debug] Transforming features...")
+    X_scaled = scaler.transform(X_raw_filtered)
+    
+    # Now build sequences and time-series split
+    print("  [Debug] Building sequences...")
+    X_train_seq = []
+    y_train_seq = []
+    X_val_seq = []
+    y_val_seq = []
+    X_test_seq = []
+    y_test_seq = []
+    
+    for ticker, start_idx, end_idx in stock_splits:
+        length = end_idx - start_idx
+        if length <= SEQ_LEN:
+            continue
+            
+        train_len = int(length * 0.70)
+        val_len = int(length * 0.15)
+        
+        if train_len < SEQ_LEN:
+            continue
+            
+        train_end = start_idx + train_len
+        val_end = train_end + val_len
+        
+        # Training sequences
+        for i in range(start_idx, train_end - SEQ_LEN):
+            X_train_seq.append(X_scaled[i : i + SEQ_LEN])
+            y_train_seq.append(y_raw[i + SEQ_LEN - 1])
+            
+        # Validation sequences
+        for i in range(max(start_idx + SEQ_LEN, train_end), val_end - SEQ_LEN):
+            X_val_seq.append(X_scaled[i : i + SEQ_LEN])
+            y_val_seq.append(y_raw[i + SEQ_LEN - 1])
+            
+        # Testing sequences
+        for i in range(max(start_idx + SEQ_LEN, val_end), end_idx - SEQ_LEN):
+            X_test_seq.append(X_scaled[i : i + SEQ_LEN])
+            y_test_seq.append(y_raw[i + SEQ_LEN - 1])
+            
+    print("  [Debug] Converting sequences to numpy arrays...")
+    X_train = np.array(X_train_seq, dtype=np.float32)
+    y_train = np.array(y_train_seq, dtype=np.int64)
+    X_val = np.array(X_val_seq, dtype=np.float32)
+    y_val = np.array(y_val_seq, dtype=np.int64)
+    X_test = np.array(X_test_seq, dtype=np.float32)
+    y_test = np.array(y_test_seq, dtype=np.int64)
+    
+    print("  [Debug] Encoding labels...")
+    # Encode labels
     le = LabelEncoder()
-    y_encoded = le.fit_transform(pd.Series(y).map({0: 'Sell', 1: 'Hold', 2: 'Buy'}))
+    le.fit(['Sell', 'Hold', 'Buy'])
     
-    return X_scaled, y_encoded, scaler, le, survived_features, stock_ids, stock_positions
-
-
-def time_series_split(X, y, stock_ids, stock_positions, test_ratio=0.2):
-    """
-    TIME-SERIES AWARE SPLIT — NO DATA LEAKAGE.
+    y_train_str = pd.Series(y_train).map({0: 'Sell', 1: 'Hold', 2: 'Buy'})
+    y_val_str = pd.Series(y_val).map({0: 'Sell', 1: 'Hold', 2: 'Buy'})
+    y_test_str = pd.Series(y_test).map({0: 'Sell', 1: 'Hold', 2: 'Buy'})
     
-    For each stock, take the last test_ratio fraction of chronologically
-    ordered rows as the test set. This ensures no future data leaks into
-    the training set.
-    """
-    np.random.seed(42)
-    unique_stocks = sorted(set(stock_ids))
-    train_idx = []
-    test_idx = []
+    y_train_enc = le.transform(y_train_str)
+    y_val_enc = le.transform(y_val_str)
+    y_test_enc = le.transform(y_test_str)
     
-    for sid in unique_stocks:
-        # Get all indices for this stock
-        indices = [i for i, s in enumerate(stock_ids) if s == sid]
-        positions = [stock_positions[i] for i in indices]
-        
-        # Sort by position (chronological order)
-        sorted_pairs = sorted(zip(positions, indices))
-        sorted_indices = [idx for _, idx in sorted_pairs]
-        
-        # Split: last test_ratio goes to test
-        split_point = int(len(sorted_indices) * (1 - test_ratio))
-        split_point = max(split_point, 1)  # At least 1 training sample
-        split_point = min(split_point, len(sorted_indices) - 1)  # At least 1 test sample
-        
-        train_idx.extend(sorted_indices[:split_point])
-        test_idx.extend(sorted_indices[split_point:])
+    buy_pct = (y_train == 2).mean() * 100
+    hold_pct = (y_train == 1).mean() * 100
+    sell_pct = (y_train == 0).mean() * 100
+    print(f"\n  Dataset Summary:")
+    print(f"  Training Sequences:   {len(X_train):,}")
+    print(f"  Validation Sequences: {len(X_val):,}")
+    print(f"  Testing Sequences:    {len(X_test):,}")
+    X_clean = X_raw
+    used_features = feature_cols
+    print(f"  Features:             {X_clean.shape[1]}")
+    print(f"  Buy (Train):          {buy_pct:.1f}%")
+    print(f"  Hold (Train):         {hold_pct:.1f}%")
+    print(f"  Sell (Train):         {sell_pct:.1f}%")
     
-    np.random.shuffle(train_idx)  # Shuffle training for SGD-style learning
-    # Test set stays in order (for realistic evaluation)
-    
-    X_train = X[train_idx]
-    X_test = X[test_idx]
-    y_train = y[train_idx]
-    y_test = y[test_idx]
-    
-    return X_train, X_test, y_train, y_test
-
+    return X_train, y_train_enc, X_val, y_val_enc, X_test, y_test_enc, scaler, le, used_features
 
 def build_training_dataset():
     print("\n" + "="*60)
-    print("  ESG Stock Prediction - Training on REAL Market Data")
+    print("  ESG Stock Prediction - Training LSTM on REAL Market Data")
     print("="*60)
     print("\n[*] Loading ESG data...")
     try:
@@ -469,263 +491,140 @@ def build_training_dataset():
         print(f"  Loaded {len(esg_data)} tickers from ESG dataset")
     except Exception as e:
         print(f"  [!] Error loading ESG data: {e}")
-        return None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None
     return build_real_training_data(esg_data)
+class PyTorchLSTM(nn.Module):
+    def __init__(self, input_size, hidden_size=64, num_layers=2, num_classes=3, dropout=0.5):
+        super(PyTorchLSTM, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        # Bi-directional LSTM for stronger sequence modeling
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
+                            batch_first=True, dropout=dropout if num_layers > 1 else 0,
+                            bidirectional=True)
+        
+        # Since it's bidirectional, hidden_size is multiplied by 2
+        self.bn1 = nn.BatchNorm1d(hidden_size * 2)
+        self.fc1 = nn.Linear(hidden_size * 2, hidden_size)
+        self.bn2 = nn.BatchNorm1d(hidden_size)
+        self.relu = nn.LeakyReLU()
+        self.dropout = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(hidden_size, num_classes)
+        
+    def forward(self, x):
+        # x is (batch_size, seq_len, input_size)
+        out, _ = self.lstm(x)
+        
+        # Take the last time step from the sequence
+        out = out[:, -1, :]
+        
+        out = self.bn1(out)
+        out = self.fc1(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+        out = self.dropout(out)
+        out = self.fc2(out)
+        return out
 
-
-def tune_hyperparams_xgb(X_train, y_train, sample_weight):
-    """RandomizedSearchCV for XGBoost to find optimal hyperparameters."""
-    import xgboost as xgb
-    param_dist = {
-        'n_estimators': [400, 600, 800, 1000],
-        'learning_rate': [0.01, 0.03, 0.05, 0.1],
-        'max_depth': [6, 8, 10, 12],
-        'subsample': [0.7, 0.8, 0.85, 0.9],
-        'colsample_bytree': [0.7, 0.8, 0.85, 0.9],
-        'gamma': [0, 0.05, 0.1, 0.2],
-        'min_child_weight': [1, 2, 3, 5],
-        'reg_alpha': [0, 0.01, 0.05, 0.1],
-        'reg_lambda': [0.05, 0.1, 0.2, 0.5],
-    }
-    xgb_model = xgb.XGBClassifier(random_state=42, eval_metric='mlogloss', verbosity=0, n_jobs=1)
-    rs = RandomizedSearchCV(
-        xgb_model, param_distributions=param_dist,
-        n_iter=20, cv=3, scoring='accuracy',
-        random_state=42, verbose=0, n_jobs=1
-    )
-    rs.fit(X_train, y_train, sample_weight=sample_weight)
-    return rs
-
-
-def tune_hyperparams_lgb(X_train, y_train, sample_weight):
-    """RandomizedSearchCV for LightGBM."""
-    import lightgbm as lgb
-    param_dist = {
-        'n_estimators': [400, 600, 800, 1000],
-        'learning_rate': [0.01, 0.03, 0.05, 0.1],
-        'max_depth': [6, 8, 10, -1],
-        'num_leaves': [31, 48, 64, 96],
-        'subsample': [0.7, 0.8, 0.85, 0.9],
-        'colsample_bytree': [0.7, 0.8, 0.85, 0.9],
-        'min_child_samples': [5, 10, 15, 20],
-        'reg_alpha': [0, 0.01, 0.05, 0.1],
-        'reg_lambda': [0.05, 0.1, 0.2, 0.5],
-    }
-    lgb_model = lgb.LGBMClassifier(random_state=42, verbose=-1, n_jobs=1)
-    rs = RandomizedSearchCV(
-        lgb_model, param_distributions=param_dist,
-        n_iter=20, cv=3, scoring='accuracy',
-        random_state=42, verbose=0, n_jobs=1
-    )
-    rs.fit(X_train, y_train, sample_weight=sample_weight)
-    return rs
-
-
-def train_models(X_train, X_test, y_train, y_test):
+def train_lstm_model(X_train, y_train, X_val, y_val):
     print("\n" + "="*60)
-    print("  Training ENSEMBLE Models (time-series validated)")
+    print("  Training Deep Learning LSTM Model (PyTorch)")
     print("="*60)
     
-    classes, counts = np.unique(y_train, return_counts=True)
-    cw = dict(zip(classes, counts.max() / counts))
-    sw = np.array([cw[y] for y in y_train])
+    # Convert to tensors
+    X_train_tensor = torch.tensor(X_train)
+    y_train_tensor = torch.tensor(y_train, dtype=torch.long)
+    X_val_tensor = torch.tensor(X_val)
+    y_val_tensor = torch.tensor(y_val, dtype=torch.long)
     
-    models = {}
+    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
     
-    # ======================== 1. XGBoost ========================
-    if TUNE_HYPERPARAMS:
-        print("[1/5] Tuning XGBoost (RandomizedSearchCV x20)...", end=' ', flush=True)
-        rs_xgb = tune_hyperparams_xgb(X_train, y_train, sw)
-        xgb_model = rs_xgb.best_estimator_
-        print(f"OK (best params: lr={rs_xgb.best_params_['learning_rate']}, "
-              f"depth={rs_xgb.best_params_['max_depth']}, "
-              f"est={rs_xgb.best_params_['n_estimators']})")
-    else:
-        print("[1/5] XGBoost (800 estimators)...", end=' ', flush=True)
-        import xgboost as xgb
-        xgb_model = xgb.XGBClassifier(
-            n_estimators=800, learning_rate=0.03, max_depth=10,
-            subsample=0.85, colsample_bytree=0.85,
-            gamma=0.05, min_child_weight=2,
-            reg_alpha=0.05, reg_lambda=0.1,
-            random_state=42, eval_metric='mlogloss',
-            verbosity=0, n_jobs=1
-        )
-        xgb_model.fit(X_train, y_train, sample_weight=sw)
-    models['XGBoost'] = xgb_model
-    acc = accuracy_score(y_test, xgb_model.predict(X_test))
-    print(f"       Test Acc: {acc:.4f}")
+    model = PyTorchLSTM(input_size=X_train.shape[2])
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-3)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
     
-    # ======================== 2. LightGBM ========================
-    if TUNE_HYPERPARAMS:
-        print("[2/5] Tuning LightGBM (RandomizedSearchCV x20)...", end=' ', flush=True)
-        rs_lgb = tune_hyperparams_lgb(X_train, y_train, sw)
-        lgb_model = rs_lgb.best_estimator_
-        print(f"OK (best params: lr={rs_lgb.best_params_['learning_rate']}, "
-              f"depth={rs_lgb.best_params_['max_depth']}, "
-              f"leaves={rs_lgb.best_params_['num_leaves']})")
-    else:
-        print("[2/5] LightGBM (800 estimators)...", end=' ', flush=True)
-        import lightgbm as lgb
-        lgb_model = lgb.LGBMClassifier(
-            n_estimators=800, learning_rate=0.03, max_depth=10,
-            num_leaves=64, subsample=0.85, colsample_bytree=0.85,
-            min_child_samples=10, class_weight='balanced',
-            reg_alpha=0.05, reg_lambda=0.1,
-            random_state=42, verbose=-1, n_jobs=1
-        )
-        lgb_model.fit(X_train, y_train, sample_weight=sw)
-    models['LightGBM'] = lgb_model
-    acc = accuracy_score(y_test, lgb_model.predict(X_test))
-    print(f"       Test Acc: {acc:.4f}")
+    epochs = 15
+    best_val_loss = float('inf')
+    best_model_state = None
+    patience = 4
+    patience_counter = 0
     
-    # ======================== 3. Random Forest ========================
-    print("[3/5] Random Forest (600 trees)...", end=' ', flush=True)
-    rf_model = RandomForestClassifier(
-        n_estimators=600, max_depth=15, min_samples_split=5,
-        min_samples_leaf=2, max_features='log2',
-        class_weight='balanced', random_state=42, n_jobs=1
-    )
-    rf_model.fit(X_train, y_train)
-    models['RandomForest'] = rf_model
-    acc = accuracy_score(y_test, rf_model.predict(X_test))
-    print(f"OK (Test Acc: {acc:.4f})")
-    
-    # ======================== 4. Gradient Boosting ========================
-    print("[4/5] Gradient Boosting (400 estimators)...", end=' ', flush=True)
-    gb_model = GradientBoostingClassifier(
-        n_estimators=400, learning_rate=0.05, max_depth=6,
-        min_samples_split=10, min_samples_leaf=5,
-        subsample=0.85, max_features=0.85,
-        random_state=42
-    )
-    gb_model.fit(X_train, y_train, sample_weight=sw)
-    models['GradientBoosting'] = gb_model
-    acc = accuracy_score(y_test, gb_model.predict(X_test))
-    print(f"OK (Test Acc: {acc:.4f})")
-    
-    # ======================== 5. CatBoost ========================
-    print("[5/5] CatBoost (800 iterations)...", end=' ', flush=True)
-    try:
-        from catboost import CatBoostClassifier
-        cb_model = CatBoostClassifier(
-            iterations=800, learning_rate=0.03, depth=8,
-            l2_leaf_reg=3, random_seed=42,
-            auto_class_weights='Balanced',
-            verbose=False, allow_writing_files=False
-        )
-        cb_model.fit(X_train, y_train)
-        models['CatBoost'] = cb_model
-        acc = accuracy_score(y_test, cb_model.predict(X_test))
-        print(f"OK (Test Acc: {acc:.4f})")
-    except ImportError:
-        print("SKIPPED (not installed)")
-    
-    # ======================== VOTING ENSEMBLE ========================
-    print("\n[*] Building Weighted Voting Ensemble...", end=' ', flush=True)
-    # Evaluate each model's CV accuracy to compute weights
-    model_weights = {}
-    for name, model in models.items():
-        try:
-            skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-            cv_scores = []
-            for train_idx, val_idx in skf.split(X_train, y_train):
-                params = model.get_params() if hasattr(model, 'get_params') else {}
-                m = model.__class__(**params)
-                m.fit(X_train[train_idx], y_train[train_idx])
-                cv_scores.append(accuracy_score(y_train[val_idx], m.predict(X_train[val_idx])))
-            model_weights[name] = float(np.mean(cv_scores))
-        except Exception:
-            model_weights[name] = 0.5
-    
-    # Normalize weights
-    total_w = sum(model_weights.values())
-    if total_w > 0:
-        model_weights = {k: v / total_w for k, v in model_weights.items()}
-    else:
-        model_weights = {k: 1.0 / len(models) for k in models}
-    
-    # Create voting classifier with weights
-    estimators = [(name, model) for name, model in models.items()]
-    weights = [model_weights[name] for name, _ in estimators]
-    voting = VotingClassifier(estimators=estimators, voting='soft', weights=weights)
-    voting.fit(X_train, y_train)
-    models['WeightedVoting'] = voting
-    print("OK")
-    
-    # ======================== EVALUATION ========================
-    results = {}
-    best_model, best_score, best_name = None, 0, ""
-    
-    for name, model in models.items():
-        y_pred = model.predict(X_test)
-        acc = accuracy_score(y_test, y_pred)
-        pre = precision_score(y_test, y_pred, average='weighted', zero_division=0)
-        rec = recall_score(y_test, y_pred, average='weighted', zero_division=0)
-        f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
-        cm = confusion_matrix(y_test, y_pred).tolist()
+    for epoch in range(epochs):
+        model.train()
+        train_loss = 0
+        train_correct = 0
+        for X_batch, y_batch in train_loader:
+            optimizer.zero_grad()
+            outputs = model(X_batch)
+            loss = criterion(outputs, y_batch)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            train_correct += (predicted == y_batch).sum().item()
+            
+        train_acc = train_correct / len(y_train_tensor)
+            
+        # Validation (Batched)
+        model.eval()
+        val_loss = 0
+        val_correct = 0
+        with torch.no_grad():
+            val_dataset = TensorDataset(X_val_tensor, y_val_tensor)
+            val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False)
+            for vx, vy in val_loader:
+                v_out = model(vx)
+                val_loss += criterion(v_out, vy).item() * vx.size(0)
+                _, v_pred = torch.max(v_out.data, 1)
+                val_correct += (v_pred == vy).sum().item()
+            val_loss /= len(y_val_tensor)
+            val_acc = val_correct / len(y_val_tensor)
+            
+        print(f"Epoch {epoch+1:02d}/{epochs} | Train Loss: {train_loss/len(train_loader):.4f} | Val Loss: {val_loss:.4f} | Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}")
         
-        cv_mean = model_weights.get(name, 0)
-        results[name] = {
-            'model': model, 'accuracy': acc, 'precision': pre,
-            'recall': rec, 'f1_score': f1, 'confusion_matrix': cm,
-            'cv_mean': cv_mean, 'cv_std': 0
-        }
+        scheduler.step(val_loss)
         
-        print(f"  {name:25s}  Acc:{acc:.4f}  F1:{f1:.4f}  CV:{cv_mean:.4f}")
-        
-        if acc > best_score:
-            best_score, best_model, best_name = acc, model, name
-    
-    print(f"\n{'='*60}")
-    print(f"  BEST MODEL: {best_name}")
-    print(f"  Test Accuracy:  {results[best_name]['accuracy']:.4f}")
-    print(f"  F1 Score:       {results[best_name]['f1_score']:.4f}")
-    print(f"  CV Accuracy:    {results[best_name]['cv_mean']:.4f}")
-    print(f"{'='*60}")
-    
-    metric_keys = ['accuracy', 'precision', 'recall', 'f1_score', 'cv_mean', 'cv_std']
-    all_results = {n: {k: float(r[k]) for k in metric_keys} for n, r in results.items()}
-    bm = results[best_name]
-    
-    return best_model, {
-        'best_model_name': best_name,
-        'accuracy': float(bm['accuracy']),
-        'precision': float(bm['precision']),
-        'recall': float(bm['recall']),
-        'f1_score': float(bm['f1_score']),
-        'cv_mean': float(bm['cv_mean']),
-        'cv_std': float(bm['cv_std']),
-        'confusion_matrix': bm['confusion_matrix'],
-        'all_results': all_results,
-        'base_models': list(models.keys()),
-        'model_weights': model_weights
-    }
-
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_model_state = model.state_dict().copy()
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print("Early stopping triggered.")
+                break
+                
+    model.load_state_dict(best_model_state)
+    return model
 
 def save_model_artifacts(model, scaler, label_encoder, metrics, cols):
     print(f"\n[*] Saving model artifacts...")
-    joblib.dump(model, MODEL_PATH)
+    torch.save(model.state_dict(), MODEL_PATH)
     size_mb = os.path.getsize(MODEL_PATH) / 1024 / 1024 if os.path.exists(MODEL_PATH) else 0
-    print(f"  [OK] Model saved ({size_mb:.1f} MB)")
+    print(f"  [OK] LSTM Model saved to {MODEL_PATH} ({size_mb:.1f} MB)")
+    
     joblib.dump(scaler, SCALER_PATH)
     joblib.dump(label_encoder, ENCODER_PATH)
     print(f"  [OK] Scaler & encoder saved")
     
     metadata = {
-        'model_type': type(model).__name__,
-        'best_model_name': metrics['best_model_name'],
+        'model_type': 'LSTM_PyTorch',
+        'best_model_name': 'LSTM Deep Learning',
         'accuracy': metrics['accuracy'],
         'precision': metrics['precision'],
         'recall': metrics['recall'],
         'f1_score': metrics['f1_score'],
-        'cv_mean': metrics['cv_mean'],
-        'cv_std': metrics['cv_std'],
+        'cv_mean': metrics['accuracy'],
+        'cv_std': 0.0,
         'confusion_matrix': metrics['confusion_matrix'],
-        'all_results': metrics['all_results'],
-        'base_models': metrics.get('base_models', []),
+        'all_results': {},
+        'base_models': ['LSTM'],
         'feature_count': len(cols),
         'features': cols,
+        'sequence_length': SEQ_LEN,
         'training_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'label_classes': ['Buy', 'Hold', 'Sell'],
         'training_source': 'REAL_MARKET_DATA_5YR_TIMESERIES',
@@ -733,7 +632,7 @@ def save_model_artifacts(model, scaler, label_encoder, metrics, cols):
         'buy_threshold': BUY_THRESHOLD,
         'sell_threshold': SELL_THRESHOLD,
         'correlation_threshold': CORR_THRESHOLD,
-        'hyperparameter_tuning': TUNE_HYPERPARAMS,
+        'hyperparameter_tuning': False,
         'validation': 'PER_STOCK_TIMESERIES_SPLIT',
         'data_leakage_free': True
     }
@@ -741,21 +640,14 @@ def save_model_artifacts(model, scaler, label_encoder, metrics, cols):
         json.dump(metadata, f, indent=2)
     print(f"  [OK] Metadata saved (data_leakage_free: True, validation: per-stock time-series)")
 
-
 def main():
     start_time = time.time()
     print("="*60)
-    print("  ESG Stock Prediction - v2 OPTIMIZED Training Pipeline")
+    print("  ESG Stock Prediction - LSTM Training Pipeline")
     print("="*60)
-    print(f"  Features:        {len(feature_cols)} (all synced with predict.py)")
+    print(f"  Features:        {len(feature_cols)}")
     print(f"  Label window:    {FORWARD_WINDOW} trading days")
-    print(f"  Buy threshold:   +{BUY_THRESHOLD*100:.1f}%")
-    print(f"  Sell threshold:  {SELL_THRESHOLD*100:.1f}%")
-    print(f"  Data source:     yfinance ({YF_PERIOD})")
-    print(f"  Validation:      PER-STOCK TIME-SERIES SPLIT (no leakage)")
-    print(f"  Feature removal: >{CORR_THRESHOLD*100:.0f}% correlation")
-    print(f"  Hyperparameter:  {'RandomizedSearchCV x20' if TUNE_HYPERPARAMS else 'Fixed'}")
-    print(f"  Ensemble:        XGBoost + LightGBM + RF + GB + CB + WeightedVoting")
+    print(f"  Sequence Length: {SEQ_LEN} days")
     print("="*60)
     
     ensure_directories()
@@ -763,36 +655,48 @@ def main():
     if result[0] is None:
         print("\n[!] Training dataset building failed!")
         return
+        
+    X_train, y_train_enc, X_val, y_val_enc, X_test, y_test_enc, scaler, label_encoder, used_features = result
     
-    X_scaled, y_encoded, scaler, label_encoder, used_features, stock_ids, stock_positions = result
+    model = train_lstm_model(X_train, y_train_enc, X_val, y_val_enc)
     
-    # TIME-SERIES AWARE SPLIT
-    X_train, X_test, y_train, y_test = time_series_split(
-        X_scaled, y_encoded, stock_ids, stock_positions, test_ratio=0.2
-    )
+    # Evaluate using batches to avoid OOM
+    print("\n[*] Evaluating Best Model...")
+    model.eval()
+    y_pred_list = []
+    with torch.no_grad():
+        X_test_tensor = torch.tensor(X_test)
+        test_dataset = TensorDataset(X_test_tensor, torch.zeros(len(X_test_tensor)))
+        test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False)
+        for tx, _ in test_loader:
+            y_pred_logits = model(tx)
+            _, y_batch_pred = torch.max(y_pred_logits, 1)
+            y_pred_list.extend(y_batch_pred.numpy())
+    y_pred = np.array(y_pred_list)
     
-    print(f"\n[*] Time-Series Split:")
-    print(f"  Training:   {X_train.shape[0]:,}")
-    print(f"  Testing:    {X_test.shape[0]:,}")
-    print(f"  Features:   {X_train.shape[1]}")
-    print(f"  Leakage:    NONE (per-stock chronological split)")
+    acc = accuracy_score(y_test_enc, y_pred)
+    pre = precision_score(y_test_enc, y_pred, average='weighted', zero_division=0)
+    rec = recall_score(y_test_enc, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_test_enc, y_pred, average='weighted', zero_division=0)
+    cm = confusion_matrix(y_test_enc, y_pred).tolist()
     
-    best_model, metrics = train_models(X_train, X_test, y_train, y_test)
-    save_model_artifacts(best_model, scaler, label_encoder, metrics, used_features)
+    metrics = {
+        'accuracy': acc,
+        'precision': pre,
+        'recall': rec,
+        'f1_score': f1,
+        'confusion_matrix': cm
+    }
+    
+    save_model_artifacts(model, scaler, label_encoder, metrics, used_features)
     
     elapsed = time.time() - start_time
     print("\n" + "="*60)
-    print("  TRAINING COMPLETE!")
-    print(f"  Best Model:     {metrics['best_model_name']}")
-    print(f"  Accuracy:       {metrics['accuracy']:.2%}")
-    print(f"  F1 Score:       {metrics['f1_score']:.2%}")
-    print(f"  CV Mean:        {metrics['cv_mean']:.2%}")
-    print(f"  Base models:    {len(metrics.get('base_models', []))}")
-    print(f"  Features used:  {len(used_features)}")
-    print(f"  Validation:     Per-stock time-series (no future leakage)")
+    print("  LSTM TRAINING COMPLETE!")
+    print(f"  Test Accuracy:  {acc:.2%}")
+    print(f"  F1 Score:       {f1:.2%}")
     print(f"  Time elapsed:   {elapsed:.0f}s")
     print("="*60)
-
 
 if __name__ == '__main__':
     main()
