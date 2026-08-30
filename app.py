@@ -32,6 +32,7 @@ from model.news_sentiment import get_news_sentiment, fetch_news, is_finnhub_avai
 from database import init_db, save_prediction, get_prediction_history, get_prediction_stats, add_watched_stock, remove_watched_stock, get_watched_stocks, get_recent_predictions_for_ticker, add_portfolio_holding, sell_portfolio_holding, get_portfolio, get_portfolio_summary, enable_watch_alert, disable_watch_alert, get_alerts_enabled_stocks, save_news_alert, get_unread_alert_count, get_recent_alerts, mark_alerts_read
 from email_utils import send_email, is_email_configured
 from rate_limiter import login_email_limiter, login_ip_limiter, register_ip_limiter
+from api_cache import global_cache, cached_call
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'esg-stock-prediction-secret-key-2024')
@@ -316,13 +317,18 @@ def api_xai(ticker):
         return jsonify({'error': 'Invalid ticker'}), 400
 
     method = request.args.get('method', 'auto')
+    cache_key = f"{ticker.upper()}_{method}"
+    cached = global_cache.get(cache_key, namespace='xai')
+    if cached is not None:
+        return jsonify(cached)
 
     # Try to use cached prediction result first
     from model.predict import predict_stock
-    cached = get_cached_prediction(ticker)
-    if cached:
-        result = generate_xai_breakdown(ticker, prediction_result=cached, method=method)
+    cached_pred = get_cached_prediction(ticker)
+    if cached_pred:
+        result = generate_xai_breakdown(ticker, prediction_result=cached_pred, method=method)
         if 'error' not in result:
+            global_cache.set(cache_key, result, ttl=300, namespace='xai')
             return jsonify(result)
 
     # Compute fresh XAI breakdown
@@ -330,6 +336,7 @@ def api_xai(ticker):
         result = generate_xai_breakdown(ticker, method=method)
         if 'error' in result:
             return jsonify(result), 404
+        global_cache.set(cache_key, result, ttl=300, namespace='xai')
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -362,11 +369,18 @@ def api_ai_explain():
 
 @app.route('/api/stocks')
 def api_stocks():
+    cached = global_cache.get('list', namespace='stocks')
+    if cached is not None:
+        return jsonify(cached)
     stocks = get_stock_list()
+    global_cache.set('list', stocks, ttl=1800, namespace='stocks')
     return jsonify(stocks)
 
 @app.route('/api/stocks/detailed')
 def api_stocks_detailed():
+    cached = global_cache.get('detailed', namespace='stocks')
+    if cached is not None:
+        return jsonify(cached)
     try:
         df = pd.read_csv(Config.ESG_DATA_PATH)
         stocks = []
@@ -382,14 +396,20 @@ def api_stocks_detailed():
                 'esg_risk': str(row['ESG_Risk_Rating']),
                 'controversy': str(row['Controversy_Level'])
             })
-        return jsonify(sorted(stocks, key=lambda x: x['ticker']))
+        sorted_stocks = sorted(stocks, key=lambda x: x['ticker'])
+        global_cache.set('detailed', sorted_stocks, ttl=1800, namespace='stocks')
+        return jsonify(sorted_stocks)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/performance')
 def api_performance():
+    cached = global_cache.get('metadata', namespace='performance')
+    if cached is not None:
+        return jsonify(cached)
     metadata = load_model_metadata()
     if metadata:
+        global_cache.set('metadata', metadata, ttl=600, namespace='performance')
         return jsonify(metadata)
     return jsonify({'error': 'Model not trained'}), 404
 
@@ -693,14 +713,15 @@ def api_market_hours():
 
 @app.route('/api/ticker/prices')
 def api_ticker_prices():
-    """Real-time ticker prices using Finnhub quote endpoint.
-    For NAVBAR_TICKERS: uses cached results from get_quick_ticker_prices() (refreshed every 60s).
-    For other tickers: fetches live quote from Finnhub API in real-time, no cache.
-    Falls back to BASE_PRICE_MAP if Finnhub is unavailable."""
+    """Real-time ticker prices with API caching."""
     requested = request.args.get('tickers', '').strip()
+    cache_key = requested or 'all'
+    cached = global_cache.get(cache_key, namespace='ticker_prices')
+    if cached is not None:
+        return jsonify(cached)
+
     all_prices = get_quick_ticker_prices()
     if requested:
-        # Filter to only requested tickers (from portfolio, history, etc.)
         ticker_list = [t.strip().upper() for t in requested.split(',') if t.strip()]
         filtered = {}
         missing_tickers = []
@@ -761,23 +782,29 @@ def api_ticker_prices():
                         'currency_symbol': currency
                     }
 
+        global_cache.set(cache_key, filtered, ttl=45, namespace='ticker_prices')
         return jsonify(filtered)
+
+    global_cache.set('all', all_prices, ttl=45, namespace='ticker_prices')
     return jsonify(all_prices)
 
 @app.route('/api/candlestick/<ticker>')
 def api_candlestick(ticker):
-    """Get OHLCV candlestick data — tries cached real data first, then fast simulated."""
+    """Get OHLCV candlestick data with fast in-memory caching."""
     period = request.args.get('period', '3mo')
     ticker = resolve_ticker(ticker)
+    cache_key = f"{ticker.upper()}_{period}"
+    cached = global_cache.get(cache_key, namespace='candlestick')
+    if cached is not None:
+        return jsonify(cached)
+
     days_map = {'1mo': 30, '3mo': 90, '6mo': 180, '1y': 365}
     days = days_map.get(period, 90)
     
     # Try to get real data using same period as predict_stock() for cache reuse
     try:
-        # Use period='1y' to match predict_stock() cache key, then slice to requested days
         df = get_stock_data(ticker, period='1y')
         if df is not None and len(df) > 2:
-            # Slice to requested period
             df_sliced = df.tail(min(days, len(df)))
             data = []
             for idx, row in df_sliced.iterrows():
@@ -792,12 +819,13 @@ def api_candlestick(ticker):
                 })
             patterns = _detect_candle_patterns(data)
             patterns.sort(key=lambda x: x['date'])
-            return jsonify({'data': data, 'patterns': patterns})
+            payload = {'data': data, 'patterns': patterns}
+            global_cache.set(cache_key, payload, ttl=600, namespace='candlestick')
+            return jsonify(payload)
     except Exception:
         pass
     
-    # Fallback: simulated data with balanced red/green candles (mean=0)
-    # Use a deterministic seed based on ticker + period so the same stock always shows the same chart
+    # Fallback simulated data
     random.seed(hash(ticker.lower() + '_candle_' + period) % (2**32))
     base_price = BASE_PRICE_MAP.get(ticker, round(random.uniform(50, 500), 2))
     data = []
@@ -805,7 +833,7 @@ def api_candlestick(ticker):
     price = base_price * 0.9
     for i in range(days, 0, -1):
         d = (now - timedelta(days=i)).strftime('%Y-%m-%d')
-        change = random.gauss(0, 0.02)  # mean=0 for balanced red/green
+        change = random.gauss(0, 0.02)
         price *= (1 + change)
         high = price * random.uniform(1.005, 1.03)
         low = price * random.uniform(0.97, 0.995)
@@ -815,16 +843,19 @@ def api_candlestick(ticker):
             'c': round(price, 2), 'v': int(random.uniform(1000000, 50000000))
         })
     patterns = _detect_candle_patterns(data)
-    return jsonify({'data': data, 'patterns': patterns})
+    payload = {'data': data, 'patterns': patterns}
+    global_cache.set(cache_key, payload, ttl=600, namespace='candlestick')
+    return jsonify(payload)
 
 
 @app.route('/api/fundamentals/<ticker>')
 def api_fundamentals(ticker):
-    """Get company fundamentals (profile + financial metrics).
-    Uses IndianAPI as primary source for Indian stocks, Finnhub for US stocks.
-    Falls back gracefully if the primary source is unavailable.
-    """
+    """Get company fundamentals with caching."""
     ticker = resolve_ticker(ticker.upper())
+    cached = global_cache.get(ticker, namespace='fundamentals')
+    if cached is not None:
+        return jsonify(cached)
+
     result = {
         'ticker': ticker,
         'finnhub_configured': is_finnhub_stock_available(),
@@ -834,7 +865,6 @@ def api_fundamentals(ticker):
         'error': None
     }
     
-    # For Indian stocks, use IndianAPI as primary source
     if is_indian_ticker(ticker) and is_indianapi_available():
         try:
             combined = get_indianapi_stock_data_with_financials(ticker)
@@ -850,11 +880,11 @@ def api_fundamentals(ticker):
                 result['profile'] = profile
                 result['metrics'] = combined.get('metrics', {})
                 result['indianapi_source'] = True
+                global_cache.set(ticker, result, ttl=600, namespace='fundamentals')
                 return jsonify(result)
         except Exception as e:
             result['error'] = str(e)
     
-    # Fallback to Finnhub for US stocks or if IndianAPI fails
     try:
         profile = get_finnhub_company_profile(ticker)
         if profile:
@@ -869,16 +899,18 @@ def api_fundamentals(ticker):
     except Exception:
         pass
     
+    global_cache.set(ticker, result, ttl=600, namespace='fundamentals')
     return jsonify(result)
 
 
 @app.route('/api/fundamentals/extended/<ticker>')
 def api_fundamentals_extended(ticker):
-    """Get extended company fundamentals including earnings, recommendations, price targets,
-    expanded financial metrics, and sentiment.
-    Uses IndianAPI for Indian stocks, Finnhub for US stocks.
-    """
+    """Get extended company fundamentals with caching."""
     ticker = resolve_ticker(ticker.upper())
+    cached = global_cache.get(ticker, namespace='fundamentals_ext')
+    if cached is not None:
+        return jsonify(cached)
+
     result = {
         'ticker': ticker,
         'finnhub_configured': is_finnhub_stock_available(),
@@ -891,10 +923,8 @@ def api_fundamentals_extended(ticker):
         'error': None
     }
     
-    # For Indian stocks, use IndianAPI as primary source
     if is_indian_ticker(ticker) and is_indianapi_available():
         try:
-            # Analyst targets / recommendations
             targets = get_indianapi_analyst_targets(ticker)
             if targets:
                 pt = targets.get('priceTarget', {})
@@ -916,12 +946,10 @@ def api_fundamentals_extended(ticker):
                 result['recosBar'] = targets.get('recosBar', {})
                 result['riskMeter'] = targets.get('riskMeter', {})
             
-            # Financial statements (quarterly results)
             financials = get_indianapi_financials(ticker, 'quarter_results')
             if financials:
                 result['earnings'] = financials
             
-            # Key metrics
             metrics = get_indianapi_key_metrics(ticker)
             if metrics:
                 result['metrics_extended'] = metrics
@@ -930,7 +958,6 @@ def api_fundamentals_extended(ticker):
         except Exception as e:
             result['error'] = str(e)
         
-        # Also try to get news sentiment from Finnhub if available
         try:
             sent = get_finnhub_sentiment(ticker)
             if sent:
@@ -938,9 +965,9 @@ def api_fundamentals_extended(ticker):
         except Exception:
             pass
         
+        global_cache.set(ticker, result, ttl=600, namespace='fundamentals_ext')
         return jsonify(result)
     
-    # For US stocks, use Finnhub as before
     try:
         me = get_finnhub_metric_extended(ticker)
         if me:
@@ -976,20 +1003,19 @@ def api_fundamentals_extended(ticker):
     except Exception:
         pass
     
+    global_cache.set(ticker, result, ttl=600, namespace='fundamentals_ext')
     return jsonify(result)
 
 
 @app.route('/api/chart/patterns/<ticker>')
 def api_chart_patterns(ticker):
-    """Get candlestick pattern detection and support/resistance levels from Finnhub.
-    Provides advanced pattern recognition beyond basic candle detection.
-    Falls back gracefully if Finnhub premium features are unavailable.
-    
-    Query params:
-        resolution: 'D', 'W', 'M' (default: 'D' daily)
-    """
+    """Get candlestick pattern detection and support/resistance levels with caching."""
     ticker = resolve_ticker(ticker)
     resolution = request.args.get('resolution', 'D')
+    cache_key = f"{ticker.upper()}_{resolution}"
+    cached = global_cache.get(cache_key, namespace='patterns')
+    if cached is not None:
+        return jsonify(cached)
     
     result = {
         'ticker': ticker,
@@ -1000,7 +1026,6 @@ def api_chart_patterns(ticker):
         'finnhub_configured': is_finnhub_stock_available()
     }
     
-    # Try Finnhub pattern detection
     try:
         patterns = get_finnhub_patterns(ticker, resolution=resolution)
         if patterns:
@@ -1008,7 +1033,6 @@ def api_chart_patterns(ticker):
     except Exception:
         pass
     
-    # Try Finnhub support/resistance
     try:
         sr = get_finnhub_support_resistance(ticker, resolution=resolution)
         if sr:
@@ -1016,7 +1040,6 @@ def api_chart_patterns(ticker):
     except Exception:
         pass
     
-    # Try Finnhub technical summary
     try:
         tech = get_finnhub_technical_summary(ticker, resolution=resolution)
         if tech:
@@ -1024,12 +1047,10 @@ def api_chart_patterns(ticker):
     except Exception:
         pass
     
-    # Also run local basic pattern detection for comparison
     try:
         from model.predict import get_stock_data
         df = get_stock_data(ticker, period='3mo')
         if df is not None and len(df) > 5:
-            # Build OHLC array for local pattern detection
             local_data = []
             for idx, row in df.iterrows():
                 d_str = idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx)[:10]
@@ -1042,23 +1063,28 @@ def api_chart_patterns(ticker):
                     'v': int(row.get('Volume', row.get('volume', 0)))
                 })
             result['local_patterns'] = _detect_candle_patterns(local_data)
-            result['local_data'] = local_data[-5:]  # last 5 candles for reference
+            result['local_data'] = local_data[-5:]
     except Exception:
         result['local_patterns'] = []
     
+    global_cache.set(cache_key, result, ttl=300, namespace='patterns')
     return jsonify(result)
 
 
 @app.route('/api/indian/stocks')
 def api_indian_stocks():
     """Get list of all Indian (Nifty 50) stocks."""
+    cached = global_cache.get('indian_stocks', namespace='stocks')
+    if cached is not None:
+        return jsonify(cached)
     stocks = get_stock_list()
     indian_stocks = [s for s in stocks if s.get('market') == 'IN']
+    global_cache.set('indian_stocks', indian_stocks, ttl=1800, namespace='stocks')
     return jsonify(indian_stocks)
 
 @app.route('/api/indian/predict', methods=['POST'])
 def api_indian_predict():
-    """Predict for an Indian stock. Uses the same prediction pipeline."""
+    """Predict for an Indian stock."""
     data = request.get_json()
     if not data or 'ticker' not in data:
         return jsonify({'error': 'Please provide a ticker symbol'}), 400
@@ -1089,14 +1115,19 @@ def api_indian_trending():
     """Get trending Indian stocks (top gainers/losers) from IndianAPI."""
     if not is_indianapi_available():
         return jsonify({'error': 'IndianAPI not configured', 'top_gainers': [], 'top_losers': []})
+    cached = global_cache.get('trending', namespace='indian_api')
+    if cached is not None:
+        return jsonify(cached)
     try:
         trending = get_indianapi_trending()
         if trending:
-            return jsonify({
+            payload = {
                 'indianapi_configured': True,
                 'top_gainers': trending.get('top_gainers', []),
                 'top_losers': trending.get('top_losers', []),
-            })
+            }
+            global_cache.set('trending', payload, ttl=120, namespace='indian_api')
+            return jsonify(payload)
         return jsonify({'top_gainers': [], 'top_losers': []})
     except Exception as e:
         return jsonify({'error': str(e), 'top_gainers': [], 'top_losers': []}), 500
@@ -1104,39 +1135,52 @@ def api_indian_trending():
 
 @app.route('/api/news/<ticker>')
 def api_news(ticker):
-    """Get recent news articles and sentiment analysis for a stock."""
+    """Get recent news articles and sentiment analysis for a stock with caching."""
     ticker = ticker.strip().upper()
+    cached = global_cache.get(ticker, namespace='news')
+    if cached is not None:
+        return jsonify(cached)
     try:
         articles = fetch_news(ticker, max_articles=5)
         sentiment = get_news_sentiment(ticker)
-        return jsonify({
+        payload = {
             'ticker': ticker,
             'sentiment': sentiment,
             'articles': articles,
             'finnhub_configured': is_finnhub_available()
-        })
+        }
+        global_cache.set(ticker, payload, ttl=300, namespace='news')
+        return jsonify(payload)
     except Exception as e:
         return jsonify({'error': str(e), 'ticker': ticker}), 500
 
 
 @app.route('/api/news/sentiment/<ticker>')
 def api_news_sentiment(ticker):
-    """Get aggregate news sentiment score for a stock (lightweight)."""
+    """Get aggregate news sentiment score for a stock with caching."""
     ticker = ticker.strip().upper()
+    cached = global_cache.get(ticker, namespace='news_sentiment')
+    if cached is not None:
+        return jsonify(cached)
     try:
         sentiment = get_news_sentiment(ticker)
-        return jsonify({
+        payload = {
             'ticker': ticker,
             'sentiment': sentiment,
             'finnhub_configured': is_finnhub_available()
-        })
+        }
+        global_cache.set(ticker, payload, ttl=300, namespace='news_sentiment')
+        return jsonify(payload)
     except Exception as e:
         return jsonify({'error': str(e), 'ticker': ticker}), 500
 
 
 @app.route('/api/indian/esg')
 def api_indian_esg():
-    """Get ESG data for Indian stocks only."""
+    """Get ESG data for Indian stocks only with caching."""
+    cached = global_cache.get('indian_esg', namespace='stocks')
+    if cached is not None:
+        return jsonify(cached)
     try:
         df = pd.read_csv(Config.ESG_DATA_PATH)
         indian_df = df[df['Country'].str.upper() == 'IN']
@@ -1153,9 +1197,29 @@ def api_indian_esg():
                 'esg_risk': str(row['ESG_Risk_Rating']),
                 'controversy': str(row['Controversy_Level'])
             })
+        global_cache.set('indian_esg', stocks, ttl=1800, namespace='stocks')
         return jsonify(stocks)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cache/stats')
+def api_cache_stats():
+    """Telemetry endpoint providing live API caching metrics."""
+    return jsonify(global_cache.stats())
+
+
+@app.route('/api/cache/clear', methods=['POST'])
+def api_cache_clear():
+    """Admin endpoint to flush specific namespace or all cached API responses."""
+    namespace = request.args.get('namespace') or (request.get_json(silent=True) or {}).get('namespace')
+    evicted = global_cache.clear(namespace=namespace)
+    return jsonify({
+        'status': 'success',
+        'namespace': namespace or 'all',
+        'evicted_count': evicted,
+        'timestamp': datetime.now().isoformat()
+    })
 
 @app.route('/profile')
 @login_required
@@ -1163,6 +1227,7 @@ def profile():
     return render_template('profile.html')
 
 @app.route('/admin/health')
+@app.route('/health')
 @login_required
 def admin_health():
     return render_template('health.html')

@@ -41,19 +41,25 @@
             </div>
         </nav>
 
-        <!-- Hero -->
-        <div class="hero-section text-center fade-in">
-            <div class="row justify-content-center">
+        <!-- Executive About Header Banner -->
+        <div class="executive-hero-banner fade-in mb-4">
+            <div class="row align-items-center g-3">
                 <div class="col-lg-8">
-                    <i class="bi bi-graph-up-arrow" style="font-size: 4rem; color: var(--esg-accent);"></i>
-                    <h1 class="hero-title mt-3">
-                        ESG Stock Prediction<br>
-                        <span class="highlight">System</span>
-                    </h1>
-                    <p class="hero-subtitle mx-auto">
-                        An advanced machine learning platform that combines Environmental, Social, and Governance (ESG)
-                        scores with technical analysis to provide intelligent stock market predictions.
-                    </p>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
+                            <i class="bi bi-shield-check me-1"></i> Responsible AI &amp; Finance
+                        </span>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1">
+                            <i class="bi bi-cpu me-1"></i> Multi-Factor ML
+                        </span>
+                    </div>
+                    <h2 class="text-white fw-bold mb-2">System Architecture &amp; Methodology</h2>
+                    <p class="text-secondary small mb-0">Discover how our machine learning models synthesize 36 technical indicators with calibrated Environmental, Social, and Governance metrics to generate robust investment intelligence.</p>
+                </div>
+                <div class="col-lg-4 text-lg-end text-center">
+                    <a href="{{ url_for('prediction') }}" class="btn btn-esg px-4 py-2">
+                        <i class="bi bi-lightning-charge-fill me-1"></i> Test Live Models
+                    </a>
                 </div>
             </div>
         </div>

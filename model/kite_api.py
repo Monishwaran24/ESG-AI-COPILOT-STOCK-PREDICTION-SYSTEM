@@ -295,8 +295,9 @@ def get_indian_stock_data_yfinance(ticker, period='6mo'):
 def get_indian_stock_data(ticker, period='6mo', prefer_twelvedata=True):
     """
     Get Indian stock historical data.
-    Primary: Twelve Data API (limited free tier support)
-    Fallback: yfinance with .NS suffix (works for all NSE stocks)
+    1. Primary: Twelve Data API
+    2. Secondary: IndianAPI (indianapi.in)
+    3. Fallback: yfinance with .NS/.BO suffix (works for all NSE stocks)
 
     Args:
         ticker: NSE symbol (e.g., 'RELIANCE')
@@ -312,18 +313,29 @@ def get_indian_stock_data(ticker, period='6mo', prefer_twelvedata=True):
     }
     days = days_map.get(period, 180)
 
-    # Try Twelve Data first (works for INFY, limited others on free tier)
+    # 1) Try Twelve Data first
     if prefer_twelvedata and is_twelvedata_available():
         df = get_historical_data_twelvedata(ticker, days=days)
         if df is not None and len(df) > 20:
             return df
 
-    # Fallback to yfinance (works for ALL NSE stocks)
+    # 2) Try IndianAPI
+    try:
+        from model.indian_api import is_indianapi_available, get_indianapi_historical_data
+        if is_indianapi_available():
+            p_map = {'1mo': '1m', '3mo': '6m', '6mo': '6m', '1y': '1yr', '2y': '3yr', '3y': '3yr', '5y': '5yr'}
+            df = get_indianapi_historical_data(ticker, period=p_map.get(period, '1yr'))
+            if df is not None and len(df) > 20:
+                return df
+    except Exception:
+        pass
+
+    # 3) Fallback to yfinance (works for ALL NSE stocks)
     df = get_indian_stock_data_yfinance(ticker, period=period)
     if df is not None and len(df) > 20:
         return df
 
-    # Try Twelve Data as last resort if we skipped it
+    # 4) Last resort Twelve Data if skipped initially
     if not prefer_twelvedata and is_twelvedata_available():
         df = get_historical_data_twelvedata(ticker, days=days)
         if df is not None and len(df) > 20:
@@ -335,8 +347,9 @@ def get_indian_stock_data(ticker, period='6mo', prefer_twelvedata=True):
 def get_indian_live_price(ticker, prefer_twelvedata=True):
     """
     Get current live price for an Indian stock.
-    Primary: Twelve Data API (limited)
-    Fallback: yfinance with .NS suffix
+    1. Primary: Twelve Data API
+    2. Secondary: IndianAPI quote
+    3. Fallback: yfinance with .NS suffix
 
     Args:
         ticker: NSE symbol (e.g., 'RELIANCE')
@@ -345,11 +358,23 @@ def get_indian_live_price(ticker, prefer_twelvedata=True):
     Returns:
         dict with price info, or None
     """
+    # 1) Try Twelve Data
     if prefer_twelvedata and is_twelvedata_available():
         quote = get_live_quote_twelvedata(ticker)
-        if quote is not None:
+        if quote is not None and quote.get('price', 0) > 0:
             return quote
 
+    # 2) Try IndianAPI
+    try:
+        from model.indian_api import is_indianapi_available, get_indianapi_quote
+        if is_indianapi_available():
+            quote = get_indianapi_quote(ticker)
+            if quote is not None and quote.get('price', 0) > 0:
+                return quote
+    except Exception:
+        pass
+
+    # 3) Try yfinance
     try:
         import yfinance as yf
         nse_symbol = NSE_TICKER_MAP.get(ticker, ticker)

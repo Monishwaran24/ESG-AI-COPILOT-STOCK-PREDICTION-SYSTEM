@@ -35,80 +35,105 @@
             </div>
         </nav>
 
-        <div class="card glass-card mb-4 fade-in">
-            <div class="row g-0 align-items-center">
-                <div class="col-md-8 p-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <i class="bi bi-search fs-4 text-esg"></i>
-                        <div class="flex-grow-1 stock-search">
-                            <i class="bi bi-search search-icon"></i>
-                            <input type="text" id="stockSearch" class="form-control" placeholder="Search by ticker or company name..." autocomplete="off" aria-label="Search stocks by ticker or company name">
-                        </div>
+        <!-- Executive Dashboard Header Banner -->
+        <div class="executive-hero-banner fade-in mb-4">
+            <div class="row align-items-center g-3">
+                <div class="col-lg-7">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
+                            <i class="bi bi-robot me-1"></i> {{ model_info.name }}
+                        </span>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1">
+                            <i class="bi bi-graph-up me-1"></i> Accuracy: {{ model_info.accuracy }}%
+                        </span>
+                        <span class="badge bg-secondary-subtle text-light border border-secondary px-2.5 py-1">
+                            <i class="bi bi-globe me-1"></i> 116+ US &amp; Indian Equities
+                        </span>
+                    </div>
+                    <h3 class="text-white fw-bold mb-2">Sustainability &amp; Market Intelligence</h3>
+                    <p class="text-secondary small mb-3">Explore multi-dimensional ESG ratings, live price technicals, and AI predictions across global stocks.</p>
+                    
+                    <div class="stock-search" style="max-width: 480px;">
+                        <i class="bi bi-search search-icon"></i>
+                        <input type="text" id="stockSearch" class="form-control" placeholder="Search by ticker or company (e.g. AAPL, RELIANCE, TCS, MSFT)..." autocomplete="off" aria-label="Search stocks by ticker or company name" style="padding-left: 2.75rem;">
                     </div>
                 </div>
-                <div class="col-md-4 p-3 text-md-end text-center">
-                    <a href="{{ url_for('prediction') }}" class="btn-esg">
-                        <i class="bi bi-graph-up-arrow"></i> Predict Now
+                <div class="col-lg-5 text-lg-end">
+                    <div class="d-flex flex-wrap justify-content-lg-end gap-2 mb-3">
+                        <span class="text-muted small w-100 mb-1 text-lg-end">Popular Equities:</span>
+                        <a href="{{ url_for('prediction') }}?ticker=AAPL" class="ticker-quick-btn">AAPL</a>
+                        <a href="{{ url_for('prediction') }}?ticker=MSFT" class="ticker-quick-btn">MSFT</a>
+                        <a href="{{ url_for('prediction') }}?ticker=NVDA" class="ticker-quick-btn">NVDA</a>
+                        <a href="{{ url_for('prediction') }}?ticker=RELIANCE" class="ticker-quick-btn">RELIANCE</a>
+                        <a href="{{ url_for('prediction') }}?ticker=TCS" class="ticker-quick-btn">TCS</a>
+                        <a href="{{ url_for('prediction') }}?ticker=INFY" class="ticker-quick-btn">INFY</a>
+                    </div>
+                    <a href="{{ url_for('prediction') }}" class="btn btn-esg px-4 py-2">
+                        <i class="bi bi-lightning-charge-fill me-1"></i> Instant AI Predict
                     </a>
                 </div>
             </div>
         </div>
 
-        <div class="alert alert-custom alert-esg-info mb-4 fade-in d-flex align-items-center gap-2">
-            <i class="bi bi-robot fs-4"></i>
-            <div>
-                <strong>Active Model:</strong> {{ model_info.name }}
-                <span class="mx-2">|</span>
-                <strong>Accuracy:</strong> {{ model_info.accuracy }}%
-                <span class="mx-2">|</span>
-                <strong>F1 Score:</strong> {{ model_info.f1_score }}%
-            </div>
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h4 class="mb-0 fw-bold"><i class="bi bi-pie-chart-fill text-esg me-2"></i>ESG Score Breakdown</h4>
+            <span class="text-muted small"><i class="bi bi-cursor me-1"></i>Select any stock from table to inspect</span>
         </div>
-
-        <h4 class="mb-3"><i class="bi bi-pie-chart-fill text-esg me-2"></i> ESG Score Breakdown</h4>
         <div class="row g-4 mb-5">
             <div class="col-md-4">
                 <div class="bento-card env text-center">
                     <div class="esg-metric-icon mx-auto"><i class="bi bi-droplet"></i></div>
-                    <div class="esg-metric-value esg-display-env" style="color: var(--env-color);">--</div>
+                    <div class="esg-metric-value esg-display-env" style="color: var(--env-color);">72.3</div>
                     <div class="esg-metric-label">Environmental Score</div>
-                    <small class="text-secondary esg-detail-env">Select a stock</small>
+                    <small class="text-secondary esg-detail-env">Apple Inc. | Risk: Low</small>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="bento-card social text-center">
                     <div class="esg-metric-icon mx-auto"><i class="bi bi-people-fill"></i></div>
-                    <div class="esg-metric-value esg-display-social" style="color: var(--social-color);">--</div>
+                    <div class="esg-metric-value esg-display-social" style="color: var(--social-color);">82.1</div>
                     <div class="esg-metric-label">Social Score</div>
-                    <small class="text-secondary esg-detail-social">Select a stock</small>
+                    <small class="text-secondary esg-detail-social">Apple Inc. | Controversy: Low</small>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="bento-card gov text-center">
                     <div class="esg-metric-icon mx-auto"><i class="bi bi-bank"></i></div>
-                    <div class="esg-metric-value esg-display-gov" style="color: var(--gov-color);">--</div>
+                    <div class="esg-metric-value esg-display-gov" style="color: var(--gov-color);">81.0</div>
                     <div class="esg-metric-label">Governance Score</div>
-                    <small class="text-secondary esg-detail-gov">Select a stock</small>
+                    <small class="text-secondary esg-detail-gov">Apple Inc. | Industry: Technology</small>
                 </div>
             </div>
         </div>
 
         <div class="row g-4 mb-5">
             <div class="col-lg-5">
-                <div class="card glass-card h-100 fade-in">
-                    <div class="card glass-card-header">
-                        <span><i class="bi bi-radar"></i> ESG Radar</span>
-                        <span class="badge bg-success" id="radarStockLabel">Select a stock</span>
+                <div class="card glass-card h-100 fade-in d-flex flex-column" style="min-height: 480px;">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2.5 px-3">
+                        <span class="fw-bold"><i class="bi bi-radar text-esg me-2"></i>ESG Dimension Analysis</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary active py-1 px-2.5" id="toggle2dRadar" style="font-size: 0.75rem;">2D Radar</button>
+                                <button type="button" class="btn btn-outline-secondary py-1 px-2.5" id="toggle3dNetwork" style="font-size: 0.75rem;"><i class="bi bi-box me-1"></i>3D Topology</button>
+                            </div>
+                            <span class="badge bg-success fw-bold px-2.5 py-1" id="radarStockLabel">AAPL</span>
+                        </div>
                     </div>
-                    <div class="card glass-card-body">
-                        <canvas id="esgRadarChart" data-env="0" data-social="0" data-gov="0"></canvas>
-                        <p class="text-center text-secondary small mt-3 mb-0" id="radarHint">
-                            <i class="bi bi-info-circle me-1"></i> Click a stock below
-                        </p>
-                        <div class="text-center mt-2" id="radarAction" style="display:none;">
-                            <button class="btn-esg btn-sm" id="viewPredictionBtn" style="padding:0.35rem 1rem;font-size:0.75rem;border:none;">
-                                <i class="bi bi-graph-up-arrow me-1"></i> View Prediction
-                            </button>
+                    <div class="card-body d-flex flex-column justify-content-between p-3 flex-grow-1">
+                        <div id="radar2dWrapper" style="position: relative; width: 100%; height: 320px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="esgRadarChart" data-env="72.3" data-social="82.1" data-gov="81.0" style="max-height: 320px; width: 100%;"></canvas>
+                        </div>
+                        <div id="esg3dNetworkContainer" style="display: none; width: 100%; height: 320px; border-radius: 12px; background: radial-gradient(circle at center, rgba(14, 34, 61, 0.45) 0%, transparent 70%);"></div>
+                        
+                        <div class="pt-2.5 border-top border-secondary border-opacity-25 mt-2 d-flex align-items-center justify-content-between">
+                            <small class="text-secondary mb-0" id="radarHint">
+                                <i class="bi bi-check-circle-fill me-1 text-esg"></i> Apple Inc.
+                            </small>
+                            <div id="radarAction">
+                                <button class="btn btn-esg btn-sm py-1.5 px-3" id="viewPredictionBtn">
+                                    <i class="bi bi-lightning-charge-fill me-1"></i> View Prediction
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -172,26 +197,51 @@
             <div id="dashboardNews" style="display:none;"></div>
         </div>
 
-        <!-- Watched Stocks News Section -->
-        <div class="card glass-card mb-5 fade-in" id="watchedNewsSection">
-            <div class="card glass-card-header">
-                <span><i class="bi bi-newspaper"></i> Latest News — Watched Stocks</span>
-                <span class="badge bg-info" id="watchedNewsCount">Loading...</span>
-            </div>
-            <div class="card glass-card-body" id="watchedNewsContainer">
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm me-2 text-esg" role="status"></div>
-                    Loading news for your watched stocks...
+        <!-- Executive 2-Column Benchmark & News Intelligence Grid -->
+        <div class="row g-4 mb-5">
+            <!-- Left Column: ESG Score Comparison & Benchmark Leaders -->
+            <div class="col-lg-6">
+                <div class="card glass-card h-100 fade-in d-flex flex-column" style="min-height: 480px;">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2.5 px-3">
+                        <span class="fw-bold"><i class="bi bi-bar-chart-steps text-esg me-2"></i>ESG Industry Benchmark</span>
+                        <div class="btn-group btn-group-sm" role="group" id="esgCompareDimensionToggle">
+                            <button type="button" class="btn btn-outline-secondary active py-1 px-2" data-dim="overall" style="font-size: 0.72rem;">Overall</button>
+                            <button type="button" class="btn btn-outline-secondary py-1 px-2" data-dim="env" style="font-size: 0.72rem;">Env</button>
+                            <button type="button" class="btn btn-outline-secondary py-1 px-2" data-dim="social" style="font-size: 0.72rem;">Social</button>
+                            <button type="button" class="btn btn-outline-secondary py-1 px-2" data-dim="gov" style="font-size: 0.72rem;">Gov</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-3 d-flex flex-column justify-content-between flex-grow-1">
+                        <div style="position: relative; width: 100%; height: 350px;">
+                            <canvas id="esgDistributionChart" style="max-height: 350px; width: 100%;"></canvas>
+                        </div>
+                        <div class="pt-2.5 border-top border-secondary border-opacity-25 mt-2 d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="bi bi-info-circle me-1 text-esg"></i> Top ESG performers across 116+ assets</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">Automated Scale</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="card glass-card mb-5 fade-in">
-            <div class="card glass-card-header">
-                <span><i class="bi bi-bar-chart-steps"></i> ESG Score Comparison</span>
-            </div>
-            <div class="card glass-card-body">
-                <canvas id="esgDistributionChart"></canvas>
+            <!-- Right Column: Real-time News & Sentiment Intelligence -->
+            <div class="col-lg-6">
+                <div class="card glass-card h-100 fade-in d-flex flex-column" id="watchedNewsSection" style="min-height: 480px;">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2.5 px-3">
+                        <span class="fw-bold"><i class="bi bi-newspaper text-info me-2"></i>Market News &amp; Sentiment</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5" id="watchedNewsCount">Live Feed</span>
+                            <button class="btn btn-outline-secondary btn-sm py-0.5 px-2" onclick="loadWatchedStocksNews()" title="Refresh headlines" style="font-size: 0.75rem;">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-3 flex-grow-1 d-flex flex-column justify-content-between" style="max-height: 430px; overflow-y: auto;" id="watchedNewsContainer">
+                        <div class="text-center py-5 text-muted">
+                            <div class="spinner-border spinner-border-sm me-2 text-esg" role="status"></div>
+                            Loading real-time market sentiment...
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -220,6 +270,11 @@
                     }
                     allStocksData = data;
                     renderDistributionChart(data);
+                    if (data && data.length > 0) {
+                        showStockData(data[0]);
+                        var firstRow = document.querySelector('.stock-item');
+                        if (firstRow) firstRow.style.background = 'rgba(0, 230, 118, 0.12)';
+                    }
                 })
                 .catch(function() {
                     if (retries < 3) setTimeout(function() { fetchDetailedStocks(retries + 1); }, 1000);
@@ -543,84 +598,181 @@
             });
         }
 
-        function renderDistributionChart(data) {
+        // Toggle between 2D Radar and 3D ESG Topology
+        var btn2d = document.getElementById('toggle2dRadar');
+        var btn3d = document.getElementById('toggle3dNetwork');
+        var wrap2d = document.getElementById('radar2dWrapper');
+        var wrap3d = document.getElementById('esg3dNetworkContainer');
+
+        if (btn2d && btn3d && wrap2d && wrap3d) {
+            btn2d.addEventListener('click', function() {
+                btn2d.classList.add('active');
+                btn3d.classList.remove('active');
+                wrap2d.style.display = 'block';
+                wrap3d.style.display = 'none';
+            });
+
+            btn3d.addEventListener('click', function() {
+                btn3d.classList.add('active');
+                btn2d.classList.remove('active');
+                wrap2d.style.display = 'none';
+                wrap3d.style.display = 'block';
+                if (window.ESG3D && !window.ESG3D.activeScenes.esgNetwork && window.ESGNetwork3D) {
+                    var net = new window.ESGNetwork3D(wrap3d);
+                    net.init();
+                    window.ESG3D.registerScene('esgNetwork', net);
+                } else if (window.ESG3D && window.ESG3D.activeScenes.esgNetwork) {
+                    window.ESG3D.activeScenes.esgNetwork.onResize();
+                }
+            });
+        }
+
+        var currentCompareDimension = 'overall';
+        var _esgDistChartInstance = null;
+
+        function renderDistributionChart(data, dimension) {
+            dimension = dimension || currentCompareDimension || 'overall';
+            currentCompareDimension = dimension;
             var canvas = document.getElementById('esgDistributionChart');
-            if (!canvas || !data.length) return;
+            if (!canvas || !data || !data.length) return;
             var ctx = canvas.getContext('2d');
 
-            var top20 = data.slice(0, 20);
-            var tickers = top20.map(function(d) { return d.ticker; });
+            // Sort data based on selected dimension
+            var sorted = data.slice().sort(function(a, b) {
+                var valA = dimension === 'env' ? a.environmental_score :
+                           dimension === 'social' ? a.social_score :
+                           dimension === 'gov' ? a.governance_score : a.esg_score;
+                var valB = dimension === 'env' ? b.environmental_score :
+                           dimension === 'social' ? b.social_score :
+                           dimension === 'gov' ? b.governance_score : b.esg_score;
+                return valB - valA;
+            });
 
-            new Chart(ctx, {
+            var top10 = sorted.slice(0, 10);
+            var labels = top10.map(function(d) { return d.ticker; });
+            var scores = top10.map(function(d) {
+                return dimension === 'env' ? d.environmental_score :
+                       dimension === 'social' ? d.social_score :
+                       dimension === 'gov' ? d.governance_score : d.esg_score;
+            });
+
+            var barColor = dimension === 'env' ? 'rgba(33, 150, 243, 0.85)' :
+                           dimension === 'social' ? 'rgba(255, 152, 0, 0.85)' :
+                           dimension === 'gov' ? 'rgba(156, 39, 176, 0.85)' : 'rgba(0, 230, 118, 0.85)';
+
+            var borderColor = dimension === 'env' ? '#2196F3' :
+                             dimension === 'social' ? '#FF9800' :
+                             dimension === 'gov' ? '#9C27B0' : '#00e676';
+
+            if (_esgDistChartInstance) {
+                _esgDistChartInstance.destroy();
+            }
+
+            _esgDistChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: tickers,
-                    datasets: [
-                        { label: 'Environmental', data: top20.map(function(d) { return d.environmental_score; }), backgroundColor: 'rgba(33,150,243,0.7)', borderColor: '#2196F3', borderWidth: 1, borderRadius: 2 },
-                        { label: 'Social', data: top20.map(function(d) { return d.social_score; }), backgroundColor: 'rgba(255,152,0,0.7)', borderColor: '#FF9800', borderWidth: 1, borderRadius: 2 },
-                        { label: 'Governance', data: top20.map(function(d) { return d.governance_score; }), backgroundColor: 'rgba(156,39,176,0.7)', borderColor: '#9C27B0', borderWidth: 1, borderRadius: 2 }
-                    ]
+                    labels: labels,
+                    datasets: [{
+                        label: dimension.toUpperCase() + ' Score',
+                        data: scores,
+                        backgroundColor: barColor,
+                        borderColor: borderColor,
+                        borderWidth: 1.5,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barThickness: 16,
+                        hoverBackgroundColor: borderColor,
+                        hoverBorderColor: '#ffffff',
+                        hoverBorderWidth: 2
+                    }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: true,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    animation: {
+                        duration: 800,
+                        easing: 'easeOutQuart'
+                    },
                     plugins: {
-                        legend: { labels: { color: '#90caf9', font: { size: 11 }, boxWidth: 12, padding: 15 } },
+                        legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(10,25,41,0.9)', titleColor: '#fff', bodyColor: '#90caf9',
-                            borderColor: 'rgba(76,175,80,0.3)', borderWidth: 1, padding: 12,
+                            backgroundColor: 'rgba(10, 25, 41, 0.95)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#90caf9',
+                            borderColor: borderColor,
+                            borderWidth: 1,
+                            padding: 12,
                             callbacks: {
                                 title: function(items) {
                                     if (!items.length) return '';
-                                    var idx = items[0].dataIndex;
-                                    var s = top20[idx];
+                                    var s = top10[items[0].dataIndex];
                                     return s.ticker + ' - ' + s.company;
                                 },
                                 label: function(ctx) {
-                                    return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1);
+                                    return 'Score: ' + ctx.parsed.x.toFixed(1) + ' / 100';
                                 },
                                 afterBody: function(items) {
                                     if (!items.length) return '';
-                                    var idx = items[0].dataIndex;
-                                    var s = top20[idx];
-                                    return 'ESG Risk: ' + s.esg_risk + ' | Controversy: ' + s.controversy;
+                                    var s = top10[items[0].dataIndex];
+                                    return 'Risk Tier: ' + s.esg_risk + ' | Industry: ' + s.industry;
                                 }
                             }
                         }
                     },
                     scales: {
-                        x: { grid: { color: 'rgba(30,58,95,0.3)' }, ticks: { color: '#90caf9', font: { size: 10 } } },
-                        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(30,58,95,0.3)' }, ticks: { color: '#64748b', font: { size: 10 } } }
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#64748b', font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#e3f2fd', font: { size: 11, weight: 'bold' } }
+                        }
                     }
                 }
             });
         }
 
-        // Load news for watched stocks on page load
+        // Dimension toggle handler
+        document.querySelectorAll('#esgCompareDimensionToggle button').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('#esgCompareDimensionToggle button').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                var dim = this.getAttribute('data-dim');
+                renderDistributionChart(allStocksData, dim);
+            });
+        });
+
+        // Load news for watched stocks (or top key equities fallback)
         function loadWatchedStocksNews() {
-            if (typeof fetch === 'undefined') return;  // Safety check
+            if (typeof fetch === 'undefined') return;
             fetch('/api/watchlist')
                 .then(function(r) { return r.json(); })
                 .then(function(watched) {
-                    var section = document.getElementById('watchedNewsSection');
                     var container = document.getElementById('watchedNewsContainer');
                     var countBadge = document.getElementById('watchedNewsCount');
                     if (!container) return;
 
-                    if (!watched || watched.length === 0) {
-                        container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-star me-2"></i>No watched stocks yet. <a href="/predict" class="text-esg">Start watching stocks</a> from the Prediction page.</div>';
-                        if (countBadge) countBadge.textContent = '0';
-                        return;
-                    }
+                    // Fallback to top market leaders if user watchlist is empty
+                    var targetStocks = (watched && watched.length > 0) ? watched : [
+                        { ticker: 'AAPL', alert_enabled: true },
+                        { ticker: 'MSFT', alert_enabled: false },
+                        { ticker: 'NVDA', alert_enabled: true },
+                        { ticker: 'RELIANCE', alert_enabled: false },
+                        { ticker: 'TCS', alert_enabled: false }
+                    ];
 
-                    if (countBadge) countBadge.textContent = watched.length;
-                    container.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2 text-esg" role="status"></div>Loading news...</div>';
+                    if (countBadge) countBadge.textContent = (watched && watched.length > 0) ? watched.length + ' Watched' : 'Curated Stream';
+                    container.innerHTML = '<div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm me-2 text-esg" role="status"></div>Loading real-time sentiment stream...</div>';
 
-                    // Track which stocks have alerts enabled
                     var alertStatus = {};
-                    watched.forEach(function(w) { alertStatus[w.ticker] = w.alert_enabled; });
+                    targetStocks.forEach(function(w) { alertStatus[w.ticker] = w.alert_enabled; });
 
-                    // Fetch news for up to 5 watched stocks in parallel
-                    var tickers = watched.slice(0, 5).map(function(w) { return w.ticker; });
+                    var tickers = targetStocks.slice(0, 5).map(function(w) { return w.ticker; });
                     var promises = tickers.map(function(t) {
                         return fetch('/api/news/' + t)
                             .then(function(r) { return r.json(); })
@@ -630,58 +782,54 @@
 
                     Promise.all(promises)
                         .then(function(results) {
-                            var anyNews = false;
                             var html = '';
                             results.forEach(function(r) {
                                 var ns = r.data && r.data.sentiment;
-                                if (!ns || !ns.article_count || ns.article_count === 0) {
-                                    // No news for this stock - skip
-                                    return;
-                                }
-                                anyNews = true;
-                                // Build a mini news card for each watched stock
+                                if (!ns) return;
+
                                 var label = ns.sentiment_label || 'Neutral';
                                 var labelLower = label.toLowerCase();
                                 var labelIcon = label === 'Positive' ? 'emoji-sunglasses' : label === 'Negative' ? 'emoji-frown' : 'emoji-neutral';
                                 var breakdown = ns.sentiment_breakdown || {positive: 0, neutral: 0, negative: 0};
                                 var avgPol = ns.avg_polarity || 0;
-                                var avgColor = avgPol > 0.1 ? '#4caf50' : avgPol < -0.1 ? '#f44336' : '#ffc107';
+                                var avgColor = avgPol > 0.1 ? '#00e676' : avgPol < -0.1 ? '#ff1744' : '#ffc107';
 
-                                html += '<div class="watched-news-card mb-3 fade-in">';
+                                html += '<div class="p-3 mb-3 rounded-3" style="background: rgba(8, 20, 36, 0.6); border: 1px solid rgba(255, 255, 255, 0.07);">';
                                 html += '<div class="d-flex align-items-center justify-content-between mb-2">';
-                                html += '<a href="/predict?ticker=' + r.ticker + '" class="fw-bold text-esg" style="font-size:1.1rem;">' + r.ticker + '</a>';
+                                html += '<div class="d-flex align-items-center gap-2">';
+                                html += '<a href="/predict?ticker=' + r.ticker + '" class="fw-bold text-esg text-decoration-none" style="font-size: 1.05rem;">' + r.ticker + '</a>';
+                                html += '<span class="sentiment-summary-badge ' + labelLower + '" style="font-size: 0.72rem; padding: 2px 8px;"><i class="bi bi-' + labelIcon + ' me-1"></i>' + label + '</span>';
+                                html += '</div>';
                                 html += '<div class="d-flex align-items-center gap-2">';
                                 var isAlertOn = alertStatus[r.ticker];
-                                html += '<button class="alert-toggle-btn' + (isAlertOn ? ' alert-on' : '') + '" data-ticker="' + r.ticker + '" title="' + (isAlertOn ? 'Alerts enabled' : 'Enable alerts') + '" aria-label="Toggle alerts for ' + r.ticker + '">' +
-                                    '<i class="bi bi-' + (isAlertOn ? 'bell-fill' : 'bell-slash') + '"' + (isAlertOn ? ' style="font-size:0.85rem;color:#ffc107;"' : ' style="font-size:0.85rem;"') + '></i>' +
-                                    '</button>';
-                                html += '<span class="sentiment-summary-badge ' + labelLower + '"><i class="bi bi-' + labelIcon + '"></i> ' + label + '</span>';
+                                html += '<button class="alert-toggle-btn' + (isAlertOn ? ' alert-on' : '') + '" data-ticker="' + r.ticker + '" title="' + (isAlertOn ? 'Alerts enabled' : 'Enable alerts') + '">';
+                                html += '<i class="bi bi-' + (isAlertOn ? 'bell-fill text-warning' : 'bell-slash') + '" style="font-size: 0.8rem;"></i>';
+                                html += '</button>';
+                                html += '<a href="/predict?ticker=' + r.ticker + '" class="btn btn-outline-secondary btn-sm py-0.5 px-2" style="font-size: 0.72rem;">Analyze <i class="bi bi-arrow-right ms-1"></i></a>';
                                 html += '</div></div>';
-                                html += '<div class="d-flex align-items-center gap-3 mb-2">';
-                                html += '<small class="text-muted"><span class="text-success fw-bold">' + (breakdown.positive || 0) + '</span> pos / <span class="text-warning fw-bold">' + (breakdown.neutral || 0) + '</span> neut / <span class="text-danger fw-bold">' + (breakdown.negative || 0) + '</span> neg</small>';
-                                html += '<small class="text-muted">Polarity: <span style="color:' + avgColor + ';font-weight:bold;">' + avgPol.toFixed(3) + '</span></small>';
+
+                                html += '<div class="d-flex align-items-center gap-3 mb-2 text-muted small" style="font-size: 0.75rem;">';
+                                html += '<span><strong class="text-success">' + (breakdown.positive || 0) + '</strong> Bullish / <strong class="text-danger">' + (breakdown.negative || 0) + '</strong> Bearish</span>';
+                                html += '<span>Polarity: <strong style="color:' + avgColor + ';">' + avgPol.toFixed(2) + '</strong></span>';
                                 html += '</div>';
 
-                                // Show headlines
                                 var headlines = ns.headlines || [];
-                                html += '<div class="watched-news-headlines">';
-                                var maxShow = Math.min(headlines.length, 3);
-                                for (var i = 0; i < maxShow; i++) {
-                                    var hl = headlines[i];
-                                    var s = hl.sentiment || 'neutral';
-                                    var sIcon = s === 'positive' ? 'hand-thumbs-up-fill' : s === 'negative' ? 'hand-thumbs-down-fill' : 'dash-circle-fill';
-                                    var url = hl.url || '';
-                                    if (url) {
-                                        html += '<a href="' + url + '" target="_blank" rel="noopener" class="news-headline-item ' + s + '" style="padding:0.35rem 0.6rem;margin-bottom:2px;">';
-                                    } else {
-                                        html += '<div class="news-headline-item ' + s + '" style="padding:0.35rem 0.6rem;margin-bottom:2px;">';
+                                if (headlines.length > 0) {
+                                    html += '<div class="d-flex flex-column gap-1.5">';
+                                    var maxShow = Math.min(headlines.length, 2);
+                                    for (var i = 0; i < maxShow; i++) {
+                                        var hl = headlines[i];
+                                        var s = hl.sentiment || 'neutral';
+                                        var sColor = s === 'positive' ? 'text-success' : s === 'negative' ? 'text-danger' : 'text-info';
+                                        var url = hl.url || '#';
+                                        html += '<a href="' + url + '" target="_blank" rel="noopener" class="text-decoration-none text-light small d-flex align-items-center gap-2 p-1.5 rounded" style="background: rgba(255,255,255,0.03); font-size: 0.8rem;">';
+                                        html += '<i class="bi bi-circle-fill ' + sColor + '" style="font-size: 0.45rem;"></i>';
+                                        html += '<span class="text-truncate flex-grow-1">' + escapeHtml(hl.title || '') + '</span>';
+                                        html += '<i class="bi bi-box-arrow-up-right text-muted" style="font-size: 0.7rem;"></i>';
+                                        html += '</a>';
                                     }
-                                    html += '<span class="news-sentiment-dot ' + s + '" style="width:20px;height:20px;font-size:0.6rem;"><i class="bi bi-' + sIcon + '"></i></span>';
-                                    html += '<span class="news-headline-text"><span class="news-headline-title" style="font-size:0.78rem;">' + escapeHtml(hl.title || '') + '</span></span>';
-                                    html += url ? '</a>' : '</div>';
+                                    html += '</div>';
                                 }
-                                html += '</div>';
-                                html += '<div class="mt-2"><a href="/predict?ticker=' + r.ticker + '" class="btn-outline-esg btn-sm" style="padding:0.2rem 0.6rem;font-size:0.65rem;">Full Analysis <i class="bi bi-arrow-right ms-1"></i></a></div>';
                                 html += '</div>';
                             });
 

@@ -32,42 +32,53 @@
             </div>
         </nav>
 
+        <!-- Executive Alerts Header Banner -->
+        <div class="executive-hero-banner fade-in mb-4">
+            <div class="row align-items-center g-3">
+                <div class="col-lg-8">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1">
+                            <i class="bi bi-broadcast me-1"></i> Live Media Stream
+                        </span>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1">
+                            <i class="bi bi-chat-square-quote me-1"></i> FinBERT Sentiment NLP
+                        </span>
+                    </div>
+                    <h3 class="text-white fw-bold mb-2">ESG &amp; Financial News Intelligence</h3>
+                    <p class="text-secondary small mb-0">Real-time global news monitoring with automated FinBERT sentiment classification, ESG impact tagging, and customizable alert rules.</p>
+                </div>
+                <div class="col-lg-4 text-lg-end text-center">
+                    <button class="btn btn-esg px-4 py-2" onclick="refreshAlerts()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Sync Live News
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Stats Row -->
         <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="alert-stat-card total">
-                    <div class="alert-stat-icon"><i class="bi bi-bell"></i></div>
-                    <div class="alert-stat-content">
-                        <div class="alert-stat-value" id="totalAlerts">--</div>
-                        <div class="alert-stat-label">Total Alerts</div>
-                    </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-box-clean fade-in">
+                    <div class="stat-value text-esg fw-bold h3 mb-1 counter-val" id="totalAlerts">--</div>
+                    <div class="text-muted small fw-semibold">Total Scanned Alerts</div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="alert-stat-card positive">
-                    <div class="alert-stat-icon"><i class="bi bi-emoji-sunglasses"></i></div>
-                    <div class="alert-stat-content">
-                        <div class="alert-stat-value" id="positiveAlerts">--</div>
-                        <div class="alert-stat-label">Positive</div>
-                    </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-box-clean fade-in">
+                    <div class="stat-value text-success fw-bold h3 mb-1 counter-val" id="positiveAlerts">--</div>
+                    <div class="text-muted small fw-semibold">Bullish Sentiment</div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="alert-stat-card negative">
-                    <div class="alert-stat-icon"><i class="bi bi-emoji-frown"></i></div>
-                    <div class="alert-stat-content">
-                        <div class="alert-stat-value" id="negativeAlerts">--</div>
-                        <div class="alert-stat-label">Negative</div>
-                    </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-box-clean fade-in">
+                    <div class="stat-value text-danger fw-bold h3 mb-1 counter-val" id="negativeAlerts">--</div>
+                    <div class="text-muted small fw-semibold">Bearish Sentiment</div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="alert-stat-card unread">
-                    <div class="alert-stat-icon"><i class="bi bi-envelope-open"></i></div>
-                    <div class="alert-stat-content">
-                        <div class="alert-stat-value" id="unreadAlerts">--</div>
-                        <div class="alert-stat-label">Unread</div>
-                    </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-box-clean fade-in">
+                    <div class="stat-value text-info fw-bold h3 mb-1 counter-val" id="neutralAlerts">--</div>
+                    <div class="text-muted small fw-semibold">Neutral / ESG Feed</div>
                 </div>
             </div>
         </div>

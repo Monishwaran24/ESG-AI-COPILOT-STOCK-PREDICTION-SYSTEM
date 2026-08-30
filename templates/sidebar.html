@@ -4,7 +4,10 @@
 <!-- SPA Loading Bar -->
 <div id="loadingBar" class="loading-bar"></div>
 
-<div id="particle-canvas"></div>
+<!-- Desktop Auto-Hidden Hover Edge Trigger Zone -->
+<div class="sidebar-edge-trigger" id="sidebarEdgeTrigger" aria-hidden="true" title="Hover to reveal navigation dock">
+    <div class="sidebar-edge-indicator"></div>
+</div>
 
 <nav class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -16,9 +19,10 @@
     </div>
 
     {% if session.get('client_id') %}
-    <div class="sidebar-user" style="padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 0.75rem;">
-        <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--esg-primary-light), var(--esg-accent)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; color: #fff; flex-shrink: 0;">
+    <div class="sidebar-user">
+        <div class="sidebar-avatar">
             {{ session.get('full_name', 'U')[:1].upper() }}
+            <span class="online-status-dot"></span>
         </div>
         <div style="flex: 1; min-width: 0;">
             <div style="font-weight: 600; font-size: 0.85rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ session.get('full_name', 'User') }}</div>
@@ -44,13 +48,13 @@
             <a href="/predict" class="nav-item">
                 <i class="bi bi-graph-up-arrow"></i>
                 <span>Prediction</span>
-                <span class="badge bg-success" style="font-size:0.6rem;">AI</span>
+                <span class="badge bg-success badge-3d-pulse" style="font-size:0.6rem;">AI</span>
             </a>
 
             <a href="/performance" class="nav-item">
                 <i class="bi bi-bar-chart-fill"></i>
                 <span>Performance</span>
-                <span class="badge bg-info">ML</span>
+                <span class="badge bg-info badge-3d-pulse">ML</span>
             </a>
 
             <a href="/history" class="nav-item">
@@ -68,19 +72,19 @@
             <a href="/portfolio" class="nav-item">
                 <i class="bi bi-wallet2"></i>
                 <span>Portfolio</span>
-                <span class="badge bg-warning">Live</span>
+                <span class="badge bg-warning badge-3d-pulse">Live</span>
             </a>
 
             <a href="/profile" class="nav-item">
                 <i class="bi bi-person-circle"></i>
                 <span>Profile</span>
-                <span class="badge bg-primary">New</span>
+                <span class="badge bg-primary badge-3d-pulse">New</span>
             </a>
 
             <a href="/admin/health" class="nav-item">
                 <i class="bi bi-heart-pulse-fill"></i>
                 <span>System Health</span>
-                <span class="badge bg-danger">Live</span>
+                <span class="badge bg-danger badge-3d-pulse">Live</span>
             </a>
         </div>
 
@@ -88,51 +92,51 @@
             <div class="nav-section-title">Advanced Tools</div>
 
             <a href="/predict?ticker=AAPL" class="nav-item" onclick="navigateTo('/predict?ticker=AAPL');return false;">
-                <i class="bi bi-apple"></i>
+                <i class="bi bi-apple text-white"></i>
                 <span>Predict AAPL</span>
             </a>
 
             <a href="javascript:void(0)" class="nav-item" onclick="showBacktestModal()">
-                <i class="bi bi-arrow-counterclockwise"></i>
+                <i class="bi bi-arrow-counterclockwise text-info"></i>
                 <span>Backtest Strategy</span>
                 <span class="badge bg-warning" style="font-size:0.6rem;">New</span>
             </a>
 
             <a href="javascript:void(0)" class="nav-item" onclick="showScenarioModal()">
-                <i class="bi bi-calculator"></i>
+                <i class="bi bi-calculator text-warning"></i>
                 <span>Scenario Simulator</span>
                 <span class="badge bg-warning" style="font-size:0.6rem;">New</span>
             </a>
 
             <a href="/about" class="nav-item">
-                <i class="bi bi-info-circle-fill"></i>
+                <i class="bi bi-info-circle-fill text-primary"></i>
                 <span>About</span>
             </a>
         </div>
 
         <div class="nav-section mt-3">
-            <div class="nav-section-title">Market Info</div>
+            <div class="nav-section-title">Market Telemetry</div>
 
-            <div class="nav-item" style="cursor:default;">
-                <i class="bi bi-building"></i>
-                <span id="marketStatus">Loading market...</span>
+            <div class="nav-item sidebar-market-widget" style="cursor:default;">
+                <i class="bi bi-reception-4 text-esg"></i>
+                <span id="marketStatus" style="font-size:0.78rem;">Loading market...</span>
             </div>
         </div>
     </div>
 
     <!-- Theme Toggle & Logout -->
-    <div class="sidebar-footer" style="border-top: 1px solid rgba(255,255,255,0.1); padding: 1rem;">
-        <button class="theme-toggle-btn" onclick="toggleTheme()" style="width:100%; padding:0.5rem; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:0.5rem; cursor:pointer; transition:all 0.3s;">
+    <div class="sidebar-footer">
+        <button class="theme-toggle-btn" onclick="toggleTheme()">
             <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
             <span id="themeLabel">Dark Mode</span>
         </button>
         {% if session.get('client_id') %}
-        <a href="javascript:void(0)" class="nav-item" style="margin-top:0.5rem;" onclick="window.location.href='/logout'">
-            <i class="bi bi-box-arrow-right" style="color:#f44336;"></i>
-            <span style="color:#f44336;">Logout</span>
+        <a href="javascript:void(0)" class="nav-item mt-2" onclick="window.location.href='/logout'">
+            <i class="bi bi-box-arrow-right text-danger"></i>
+            <span class="text-danger fw-semibold">Logout</span>
         </a>
         {% endif %}
-        <p class="mt-2" style="font-size:0.65rem; color:rgba(255,255,255,0.4); text-align:center;">
+        <p class="mt-2 mb-0" style="font-size:0.65rem; color:rgba(255,255,255,0.4); text-align:center;">
             <i class="bi bi-cpu me-1"></i> v2.0 &middot; ESG Predict
         </p>
     </div>
@@ -227,10 +231,39 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/motion.js') }}"></script>
+<script src="{{ url_for('static', filename='js/esg-motion.js') }}"></script>
+<script src="{{ url_for('static', filename='js/three.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/3d/ESGDataSphere.js') }}"></script>
+<script src="{{ url_for('static', filename='js/3d/ESGNetwork.js') }}"></script>
+<script src="{{ url_for('static', filename='js/3d/DataParticles.js') }}"></script>
+<script src="{{ url_for('static', filename='js/3d/CardTilt.js') }}"></script>
+<script src="{{ url_for('static', filename='js/3d/esg-3d.js') }}"></script>
 <script>
-function showBacktestModal() { document.getElementById('backtestModal').style.display = 'block'; }
-function showScenarioModal() { document.getElementById('scenarioModal').style.display = 'block'; }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function showBacktestModal() {
+    var m = document.getElementById('backtestModal');
+    if (window.ESGMotion && window.ESGMotion.animateModalOpen) {
+        window.ESGMotion.animateModalOpen(m);
+    } else if (m) {
+        m.style.display = 'block';
+    }
+}
+function showScenarioModal() {
+    var m = document.getElementById('scenarioModal');
+    if (window.ESGMotion && window.ESGMotion.animateModalOpen) {
+        window.ESGMotion.animateModalOpen(m);
+    } else if (m) {
+        m.style.display = 'block';
+    }
+}
+function closeModal(id) {
+    var m = document.getElementById(id);
+    if (window.ESGMotion && window.ESGMotion.animateModalClose) {
+        window.ESGMotion.animateModalClose(m);
+    } else if (m) {
+        m.style.display = 'none';
+    }
+}
 
 function runBacktest() {
     var ticker = document.getElementById('backtestTicker').value.trim().toUpperCase();
@@ -268,6 +301,9 @@ function runBacktest() {
                 </div>
             </div>
         `;
+        if (window.ESGMotion && window.ESGMotion.animateFadeUp) {
+            window.ESGMotion.animateFadeUp(resultsDiv.querySelector('.card'), { duration: 0.35, y: 10 });
+        }
     })
     .catch(err => {
         resultsDiv.innerHTML = '<div class="alert alert-custom alert-esg-danger">Error: ' + err.message + '</div>';
@@ -311,13 +347,20 @@ function runScenario() {
                 </div>
             </div>
         `;
+        if (window.ESGMotion && window.ESGMotion.animateFadeUp) {
+            window.ESGMotion.animateFadeUp(resultsDiv.querySelector('.card'), { duration: 0.35, y: 10 });
+        }
     });
 }
 
-// Click outside to close modals
+// Click outside to close modals with animation
 window.addEventListener('click', function(e) {
     if (e.target.classList.contains('modal')) {
-        e.target.style.display = 'none';
+        if (window.ESGMotion && window.ESGMotion.animateModalClose) {
+            window.ESGMotion.animateModalClose(e.target);
+        } else {
+            e.target.style.display = 'none';
+        }
     }
 });
 </script>

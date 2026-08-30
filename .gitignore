@@ -1,0 +1,33 @@
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Databases
+*.db
+*.sqlite3
+
+# Logs & temporary runtime files
+logs/
+*.log
+*.out
+scratch/
+
+# Temporary scratch & patch files
+extract_old.py
+patch_main.py
+prediction_head.html
+prediction_test.html
+test_pred.py
+test_predict.json

@@ -39,6 +39,12 @@ function initializePageContent() {
     initializeXAIToggle();
     initializeNewsAlerts();
     updateActiveNavItem();
+    if (window.ESGMotion && window.ESGMotion.initMotionSystem) {
+        window.ESGMotion.initMotionSystem();
+    }
+    if (window.ESG3D && window.ESG3D.init) {
+        window.ESG3D.init();
+    }
 }
 
 function safeGetContext(canvasId) {
@@ -67,28 +73,133 @@ function updateActiveNavItem() {
 function initializeSidebar() {
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebar = document.getElementById('sidebar');
+    const trigger = document.getElementById('sidebarEdgeTrigger');
     const overlay = document.getElementById('sidebarOverlay');
 
-    if (!sidebarToggle || !sidebar) return;
+    if (!sidebar) return;
 
-    sidebarToggle.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        sidebar.classList.toggle('open');
-        if (overlay) overlay.classList.toggle('show');
-    });
+    let isPointerInTrigger = false;
+    let isPointerInSidebar = false;
+    let closeTimer = null;
 
-    if (overlay) {
-        overlay.addEventListener('click', function () {
+    function openSidebar() {
+        if (closeTimer) {
+            clearTimeout(closeTimer);
+            closeTimer = null;
+        }
+        sidebar.classList.add('open');
+        if (overlay && window.innerWidth < 992) {
+            overlay.classList.add('show');
+        }
+    }
+
+    function closeSidebar(force) {
+        if (closeTimer) {
+            clearTimeout(closeTimer);
+            closeTimer = null;
+        }
+        isPointerInTrigger = false;
+        isPointerInSidebar = false;
+        if (sidebar) {
             sidebar.classList.remove('open');
+        }
+        if (overlay) {
             overlay.classList.remove('show');
+        }
+        if (sidebar && sidebar.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
+    }
+    window.closeSidebar = closeSidebar;
+
+    function scheduleClose() {
+        if (closeTimer) clearTimeout(closeTimer);
+        closeTimer = setTimeout(function () {
+            // Close only if pointer is outside BOTH trigger and sidebar, and focus is not inside
+            const hasFocusInside = sidebar.contains(document.activeElement);
+            if (!isPointerInTrigger && !isPointerInSidebar && !hasFocusInside) {
+                closeSidebar();
+            }
+        }, 150); // 150ms smooth transition window
+    }
+
+    // 1. Edge Trigger Zone Events
+    if (trigger) {
+        trigger.addEventListener('pointerenter', function (e) {
+            if (e.pointerType === 'mouse' || window.innerWidth >= 992) {
+                isPointerInTrigger = true;
+                openSidebar();
+            }
+        });
+
+        trigger.addEventListener('pointerleave', function (e) {
+            if (e.pointerType === 'mouse' || window.innerWidth >= 992) {
+                isPointerInTrigger = false;
+                scheduleClose();
+            }
         });
     }
 
+    // 2. Sidebar Container Events
+    sidebar.addEventListener('pointerenter', function (e) {
+        if (e.pointerType === 'mouse' || window.innerWidth >= 992) {
+            isPointerInSidebar = true;
+            openSidebar();
+        }
+    });
+
+    sidebar.addEventListener('pointerleave', function (e) {
+        if (e.pointerType === 'mouse' || window.innerWidth >= 992) {
+            isPointerInSidebar = false;
+            scheduleClose();
+        }
+    });
+
+    // Close immediately when clicking any navigation link
+    sidebar.querySelectorAll('.nav-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+            closeSidebar(true);
+        });
+    });
+
+    // 3. Accessibility: Keyboard Focus within Sidebar
+    sidebar.addEventListener('focusin', function () {
+        openSidebar();
+    });
+
+    sidebar.addEventListener('focusout', function (e) {
+        if (!sidebar.contains(e.relatedTarget)) {
+            scheduleClose();
+        }
+    });
+
+    // 4. Mobile Toggle Button
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (sidebar.classList.contains('open')) {
+                closeSidebar(true);
+            } else {
+                openSidebar();
+            }
+        });
+    }
+
+    // 5. Overlay Click
+    if (overlay) {
+        overlay.addEventListener('click', function () {
+            closeSidebar(true);
+        });
+    }
+
+    // 6. Escape Key Dismissal
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && sidebar.classList.contains('open')) {
-            sidebar.classList.remove('open');
-            if (overlay) overlay.classList.remove('show');
+            closeSidebar(true);
+            if (sidebarToggle) {
+                sidebarToggle.focus();
+            }
         }
     });
 
@@ -159,11 +270,21 @@ function initializeStockSearch() {
 
     searchInput.addEventListener('input', function () {
         const query = this.value.toLowerCase().trim();
+        const visibleItems = [];
         document.querySelectorAll('.stock-item').forEach(function (item) {
             const ticker = item.getAttribute('data-ticker')?.toLowerCase() || '';
             const company = item.getAttribute('data-company')?.toLowerCase() || '';
-            item.style.display = (ticker.includes(query) || company.includes(query)) ? '' : 'none';
+            const matches = (ticker.includes(query) || company.includes(query));
+            if (matches) {
+                item.style.display = '';
+                visibleItems.push(item);
+            } else {
+                item.style.display = 'none';
+            }
         });
+        if (query && visibleItems.length > 0 && window.ESGMotion && window.ESGMotion.animateFadeIn) {
+            window.ESGMotion.animateFadeIn(visibleItems.slice(0, 10), { duration: 0.22 });
+        }
     });
 
     const clearBtn = document.getElementById('clearSearch');
@@ -266,14 +387,21 @@ function fetchPredictionAJAX(ticker) {
     });
 }
 
+function safeFmt(val, decimals, fallback) {
+    if (val === null || val === undefined || isNaN(val)) return (fallback !== undefined ? fallback : '--');
+    return Number(val).toFixed(decimals !== undefined ? decimals : 2);
+}
+
 function renderPredictionResult(result) {
     const container = document.getElementById('predictionResult');
     if (!container) return;
 
-    const isPositive = result.price_change_pct >= 0;
-    const rec = result.recommendation || 'N/A';
+    const rawPrice = result.current_price != null && !isNaN(result.current_price) ? Number(result.current_price) : 0;
+    const rawChange = result.price_change_pct != null && !isNaN(result.price_change_pct) ? Number(result.price_change_pct) : 0;
+    const isPositive = rawChange >= 0;
+    const rec = result.recommendation || 'Hold';
     const recLower = rec.toLowerCase();
-    const confidence = result.confidence || 0;
+    const confidence = result.confidence != null && !isNaN(result.confidence) ? Number(result.confidence) : 50;
 
     const confColor = confidence >= 80 ? '#4caf50' : confidence >= 60 ? '#ff9800' : '#f44336';
     const confIcon = rec === 'Buy' ? 'check-circle' : rec === 'Sell' ? 'x-circle' : 'dash-circle';
@@ -282,55 +410,75 @@ function renderPredictionResult(result) {
 
     const esg = result.esg_data || {};
     const ind = result.indicators || {};
+    const currSym = result.currency_symbol || '$';
 
     const html = `
     <div class="fade-in">
       <div class="row g-4 mb-4">
         <div class="col-lg-4">
-          <div class="stock-price-card">
-            <div class="stock-ticker">${result.ticker}</div>
-            <div class="stock-company">${result.company}</div>
-            <div class="stock-price"><span class="currency">${result.currency_symbol}</span>${result.current_price.toFixed(2)}</div>
-            <div class="stock-change ${isPositive ? 'positive' : 'negative'}">
-              <i class="bi bi-${isPositive ? 'arrow-up' : 'arrow-down'}"></i> ${result.price_change_pct.toFixed(2)}%
+          <div class="stock-price-card h-100 d-flex flex-column justify-content-between p-4">
+            <div>
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <div class="stock-ticker">${escapeHtml(result.ticker || '')}</div>
+                  <div class="stock-company text-truncate" style="max-width: 210px;">${escapeHtml(result.company || '')}</div>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small">
+                  <i class="bi bi-broadcast me-1"></i> Live
+                </span>
+              </div>
+              <div class="stock-price my-2"><span class="currency">${currSym}</span>${safeFmt(result.current_price, 2, '0.00')}</div>
+              <div class="stock-change ${isPositive ? 'positive' : 'negative'} mb-2">
+                <i class="bi bi-${isPositive ? 'arrow-up' : 'arrow-down'}"></i> ${safeFmt(result.price_change_pct, 2, '0.00')}%
+              </div>
             </div>
-            <small class="text-secondary"><i class="bi bi-clock-history me-1"></i>${result.prediction_time}</small>
-            <div class="mt-2"><small class="text-muted">Model: ${result.model_used || 'AI'} | Acc: ${result.model_accuracy || 85}%</small></div>
+            <div class="pt-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+              <small class="text-secondary"><i class="bi bi-clock-history me-1"></i> ${escapeHtml(result.prediction_time || '')}</small>
+              <small class="text-muted">Acc: <strong class="text-esg">${safeFmt(result.model_accuracy, 1, '85')}%</strong></small>
+            </div>
           </div>
         </div>
+
         <div class="col-lg-4">
-          <div class="card h-100">
-            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
-              <small class="text-secondary text-uppercase mb-2 fw-bold">AI Recommendation</small>
+          <div class="card glass-card h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center p-4">
+              <small class="text-secondary text-uppercase mb-2 fw-bold" style="letter-spacing: 0.5px;">AI Recommendation</small>
               <div class="recommendation-badge ${recLower} mb-3">
                 <i class="bi bi-${confIcon}"></i> ${rec}
               </div>
-              <div class="confidence-meter">
-                <canvas id="confidenceGauge"></canvas>
+              <div class="confidence-meter mb-2">
+                <canvas id="confidenceGauge" width="120" height="120"></canvas>
                 <div class="confidence-value">
                   <span class="number" style="color:${confColor};">${confidence.toFixed(0)}%</span>
                   <span class="label">Confidence</span>
                 </div>
               </div>
+              <small class="text-muted"><i class="bi bi-shield-check me-1 text-esg"></i> Algorithmic Conviction</small>
             </div>
           </div>
         </div>
+
         <div class="col-lg-4">
-          <div class="card h-100">
-            <div class="card-body">
-              <small class="text-secondary text-uppercase fw-bold mb-3 d-block">AI Summary</small>
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-secondary"><i class="bi bi-trending-up me-1"></i> Trend</span>
-                <span class="trend-badge ${(result.trend || 'neutral').toLowerCase()}"><i class="bi bi-${trendIcon}"></i> ${result.trend || 'N/A'}</span>
+          <div class="card glass-card h-100">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <small class="text-secondary text-uppercase fw-bold" style="letter-spacing: 0.5px;">AI Summary</small>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 small">Live ML</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                  <span class="text-secondary small"><i class="bi bi-trending-up me-1 text-esg"></i> Trend Direction</span>
+                  <span class="trend-badge ${(result.trend || 'neutral').toLowerCase()}"><i class="bi bi-${trendIcon}"></i> ${result.trend || 'N/A'}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                  <span class="text-secondary small"><i class="bi bi-shield-exclamation me-1 text-warning"></i> Risk Profile</span>
+                  <span class="risk-badge ${riskClass}">${result.risk_level || 'N/A'}</span>
+                </div>
+                ${result.industry ? `<div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25"><span class="text-secondary small"><i class="bi bi-building me-1 text-info"></i> Sector / Industry</span><span class="text-light small fw-semibold">${escapeHtml(result.industry)}</span></div>` : ''}
               </div>
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-secondary"><i class="bi bi-shield-exclamation me-1"></i> Risk</span>
-                <span class="risk-badge ${riskClass}">${result.risk_level || 'N/A'}</span>
-              </div>
-              ${result.industry ? `<div class="d-flex justify-content-between align-items-center mb-3"><span class="text-secondary"><i class="bi bi-building me-1"></i> Industry</span><span class="text-primary small">${result.industry}</span></div>` : ''}
-              <div class="d-flex justify-content-between align-items-center">
-                <span class="text-secondary"><i class="bi bi-robot me-1"></i> AI Engine</span>
-                <span class="text-esg small fw-bold">${result.model_used || 'Ensemble AI'}</span>
+              <div class="d-flex justify-content-between align-items-center pt-2">
+                <span class="text-secondary small"><i class="bi bi-robot me-1 text-esg"></i> Decision Engine</span>
+                <span class="text-esg small fw-bold">${escapeHtml(result.model_used || 'Ensemble AI')}</span>
               </div>
               ${result.ml_unavailable ? '<div class="alert alert-custom alert-esg-warning mt-3 mb-0 py-2 small"><i class="bi bi-exclamation-triangle me-1"></i> <strong>ML model unavailable</strong> &mdash; showing real-time market data only</div>' : ''}
             </div>
@@ -344,12 +492,12 @@ function renderPredictionResult(result) {
             <div class="card-header"><span><i class="bi bi-speedometer2"></i> Technical Indicators</span></div>
             <div class="card-body">
               <div class="row g-3">
-                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${ind.rsi || '--'}</div><div class="metric-label">RSI (14)</div></div></div>
-                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${(ind.macd || 0).toFixed(4)}</div><div class="metric-label">MACD</div></div></div>
-                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${result.currency_symbol}${(ind.sma_10 || 0).toFixed(2)}</div><div class="metric-label">SMA (10)</div></div></div>
-                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${result.currency_symbol}${(ind.sma_30 || 0).toFixed(2)}</div><div class="metric-label">SMA (30)</div></div></div>
-                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${(ind.volume_ratio || 0).toFixed(2)}x</div><div class="metric-label">Volume Ratio</div></div></div>
-                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${(ind.volatility || 0).toFixed(2)}%</div><div class="metric-label">Volatility</div></div></div>
+                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${safeFmt(ind.rsi, 1, '--')}</div><div class="metric-label">RSI (14)</div></div></div>
+                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${safeFmt(ind.macd, 4, '0.0000')}</div><div class="metric-label">MACD</div></div></div>
+                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${currSym}${safeFmt(ind.sma_10, 2, '0.00')}</div><div class="metric-label">SMA (10)</div></div></div>
+                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${currSym}${safeFmt(ind.sma_30, 2, '0.00')}</div><div class="metric-label">SMA (30)</div></div></div>
+                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${safeFmt(ind.volume_ratio, 2, '1.00')}x</div><div class="metric-label">Volume Ratio</div></div></div>
+                <div class="col-6"><div class="metric-item"><div class="metric-value" style="font-size:1.3rem;">${safeFmt(ind.volatility, 2, '0.00')}%</div><div class="metric-label">Volatility</div></div></div>
               </div>
             </div>
           </div>
@@ -362,13 +510,13 @@ function renderPredictionResult(result) {
             </div>
             <div class="card-body">
               <div class="row g-3">
-                <div class="col-4"><div class="esg-metric-card env text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-droplet"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--env-color);">${(esg.environmental_score || 0).toFixed(1)}</div><div class="esg-metric-label" style="font-size:0.7rem;">Environmental</div></div></div>
-                <div class="col-4"><div class="esg-metric-card social text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-people-fill"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--social-color);">${(esg.social_score || 0).toFixed(1)}</div><div class="esg-metric-label" style="font-size:0.7rem;">Social</div></div></div>
-                <div class="col-4"><div class="esg-metric-card gov text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-bank"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--gov-color);">${(esg.governance_score || 0).toFixed(1)}</div><div class="esg-metric-label" style="font-size:0.7rem;">Governance</div></div></div>
+                <div class="col-4"><div class="esg-metric-card env text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-droplet"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--env-color);">${safeFmt(esg.environmental_score, 1, '0.0')}</div><div class="esg-metric-label" style="font-size:0.7rem;">Environmental</div></div></div>
+                <div class="col-4"><div class="esg-metric-card social text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-people-fill"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--social-color);">${safeFmt(esg.social_score, 1, '0.0')}</div><div class="esg-metric-label" style="font-size:0.7rem;">Social</div></div></div>
+                <div class="col-4"><div class="esg-metric-card gov text-center p-3" style="background:transparent;"><div class="esg-metric-icon mx-auto" style="width:40px;height:40px;font-size:1.2rem;"><i class="bi bi-bank"></i></div><div class="esg-metric-value" style="font-size:1.5rem;color:var(--gov-color);">${safeFmt(esg.governance_score, 1, '0.0')}</div><div class="esg-metric-label" style="font-size:0.7rem;">Governance</div></div></div>
               </div>
               <hr class="border-secondary my-3">
-              <div class="d-flex justify-content-between mb-2"><span class="text-secondary small">Overall ESG Score</span><span class="fw-bold text-esg">${(esg.esg_score || 0).toFixed(1)} / 100</span></div>
-              <div class="progress-esg"><div class="progress-bar bg-success" style="width:${esg.esg_score || 0}%;"></div></div>
+              <div class="d-flex justify-content-between mb-2"><span class="text-secondary small">Overall ESG Score</span><span class="fw-bold text-esg">${safeFmt(esg.esg_score, 1, '0.0')} / 100</span></div>
+              <div class="progress-esg"><div class="progress-bar bg-success" style="width:${safeFmt(esg.esg_score, 0, '0')}%;"></div></div>
               <div class="d-flex justify-content-between mt-2"><span class="text-secondary small">Controversy</span><span class="badge bg-${esg.controversy === 'Low' ? 'success' : 'warning'}">${esg.controversy || 'Low'}</span></div>
             </div>
           </div>
@@ -453,8 +601,18 @@ function renderPredictionResult(result) {
 
     container.innerHTML = html;
 
+    if (window.ESGMotion && window.ESGMotion.animatePredictionResult) {
+        window.ESGMotion.animatePredictionResult(container);
+    }
+    if (window.ESGCardTilt && window.ESGCardTilt.init) {
+        window.ESGCardTilt.init();
+    }
+
     setTimeout(function() {
         drawConfidenceGauge(confidence);
+        if (window.ESGMotion && window.ESGMotion.animateAllCounters) {
+            window.ESGMotion.animateAllCounters();
+        }
         // Reset candle render guard because previous chart containers were destroyed by innerHTML replacement
         _candleRendering = false;
         // Render TradingView candlestick chart
@@ -549,6 +707,9 @@ function renderAIExplanation(explanation) {
         ${reasonsHtml ? '<ul class="list-group list-group-flush mt-3">' + reasonsHtml + '</ul>' : ''}
       </div>
     </div>`;
+    if (window.ESGMotion && window.ESGMotion.animateFadeUp) {
+        window.ESGMotion.animateFadeUp(container.querySelector('.card'), { duration: 0.35, y: 10 });
+    }
 }
 
 function updateFormState(ticker) {
@@ -571,6 +732,9 @@ function showLoading(message) {
         <p>${message}</p>
         <p class="text-muted small">Processing technical indicators, ESG scores & AI analysis</p>
       </div>`;
+    if (window.ESGMotion && window.ESGMotion.animateFadeIn) {
+        window.ESGMotion.animateFadeIn(container.querySelector('.loading-spinner'), { duration: 0.25 });
+    }
 }
 
 function hideLoading() {
@@ -579,11 +743,47 @@ function hideLoading() {
 }
 
 function initializeCharts() {
+    if (typeof Chart !== 'undefined') {
+        Chart.defaults.color = '#90caf9';
+        Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        Chart.defaults.animation.duration = 750;
+        Chart.defaults.animation.easing = 'easeOutQuart';
+    }
+
     initializeESGRadarChart();
     initializeStockPriceChart();
     initializePerformanceChart();
     initializeConfusionMatrix();
     initializeESGDistributionChart();
+
+    // Auto-mount Candlestick chart and XAI for prediction page if result is already in DOM
+    var candleContainer = document.getElementById('tvCandleChart');
+    var tickerEl = document.querySelector('.stock-ticker');
+    var ticker = tickerEl ? tickerEl.textContent.trim() : null;
+    if (!ticker) {
+        var tickerInput = document.getElementById('ticker_text');
+        var tickerSelect = document.getElementById('tickerSelect');
+        if (tickerInput && tickerInput.value) ticker = tickerInput.value.trim();
+        else if (tickerSelect && tickerSelect.value) ticker = tickerSelect.value.trim();
+    }
+
+    if (candleContainer && ticker) {
+        _candleRendering = false;
+        if (typeof renderCandlestickChart === 'function') {
+            renderCandlestickChart(ticker, '3mo');
+        }
+    }
+    if (ticker && document.getElementById('xaiCard')) {
+        if (typeof renderXAI === 'function') {
+            renderXAI(ticker);
+        }
+    }
+    var gaugeCanvas = document.getElementById('confidenceGauge');
+    if (gaugeCanvas) {
+        var confValEl = document.querySelector('.confidence-value .number');
+        var conf = confValEl ? parseFloat(confValEl.textContent) : 85;
+        drawConfidenceGauge(isNaN(conf) ? 85 : conf);
+    }
 }
 
 function drawConfidenceGauge(confidence) {
@@ -601,12 +801,12 @@ function drawConfidenceGauge(confidence) {
 
     ctx.beginPath();
     ctx.arc(cx, cy, r, Math.PI * 0.75, Math.PI * 2.25);
-    ctx.strokeStyle = 'rgba(30, 58, 95, 0.5)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 8;
     ctx.lineCap = 'round';
     ctx.stroke();
 
-    const color = confidence >= 80 ? '#4caf50' : confidence >= 60 ? '#ff9800' : '#f44336';
+    const color = confidence >= 80 ? '#00e676' : confidence >= 60 ? '#ffb300' : '#ff1744';
     ctx.beginPath();
     ctx.arc(cx, cy, r, Math.PI * 0.75, endAngle, false);
     ctx.strokeStyle = color;
@@ -636,40 +836,46 @@ function initializeESGRadarChart() {
         data: {
             labels: ['Environmental', 'Social', 'Governance', 'Overall ESG'],
             datasets: [{
-                label: 'ESG Scores',
+                label: 'ESG Dimensions',
                 data: [envScore, socialScore, govScore, overall],
-                backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                borderColor: 'rgba(76, 175, 80, 0.8)',
+                backgroundColor: 'rgba(0, 230, 118, 0.18)',
+                borderColor: '#00e676',
                 borderWidth: 2,
-                pointBackgroundColor: ['#2196F3','#FF9800','#9C27B0','#4CAF50'],
-                pointBorderColor: '#fff',
+                pointBackgroundColor: ['#2196F3', '#FF9800', '#9C27B0', '#00E676'],
+                pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
-                pointRadius: 6
+                pointRadius: 5,
+                pointHoverRadius: 8,
+                pointHoverBorderWidth: 2
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            animation: {
+                duration: 850,
+                easing: 'easeOutCubic'
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(10, 25, 41, 0.9)',
-                    titleColor: '#fff',
+                    backgroundColor: 'rgba(10, 25, 41, 0.95)',
+                    titleColor: '#ffffff',
                     bodyColor: '#90caf9',
-                    borderColor: 'rgba(76, 175, 80, 0.3)',
+                    borderColor: 'rgba(0, 230, 118, 0.3)',
                     borderWidth: 1,
                     padding: 12,
-                    callbacks: { label: function(ctx) { return ctx.parsed.r.toFixed(1) + '/100'; } }
+                    callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.r.toFixed(1) + ' / 100'; } }
                 }
             },
             scales: {
                 r: {
                     beginAtZero: true,
                     max: 100,
-                    ticks: { stepSize: 20, color: '#64748b', backdropColor: 'transparent' },
-                    grid: { color: 'rgba(30, 58, 95, 0.5)' },
-                    angleLines: { color: 'rgba(30, 58, 95, 0.5)' },
-                    pointLabels: { color: '#90caf9', font: { size: 11 } }
+                    ticks: { stepSize: 20, color: '#64748b', backdropColor: 'transparent', font: { size: 9 } },
+                    grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                    angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
+                    pointLabels: { color: '#e3f2fd', font: { size: 11, weight: '600' } }
                 }
             }
         }
@@ -686,13 +892,12 @@ function initializeStockPriceChart() {
 
     var canvas = document.getElementById('stockPriceChart');
     if (!canvas) return;
-    let prices = [], labels = [], recommendation = 'Sell';
+    let prices = [], labels = [];
     const currency = canvas.getAttribute('data-currency') || '$';
 
     try {
         prices = JSON.parse(canvas.getAttribute('data-prices') || '[]');
         labels = JSON.parse(canvas.getAttribute('data-dates') || '[]');
-        recommendation = canvas.getAttribute('data-rec') || 'Sell';
     } catch (e) { return; }
 
     if (prices.length === 0) return;
@@ -700,12 +905,12 @@ function initializeStockPriceChart() {
     const sma10 = calculateSMA(prices, 10);
     const sma30 = calculateSMA(prices, 30);
     const isPositive = prices.length > 1 && prices[prices.length - 1] >= prices[0];
-    const lineColor = isPositive ? '#4caf50' : '#f44336';
+    const lineColor = isPositive ? '#00e676' : '#ff1744';
 
     var gradient;
     try {
         gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, isPositive ? 'rgba(76, 175, 80, 0.3)' : 'rgba(244, 67, 54, 0.3)');
+        gradient.addColorStop(0, isPositive ? 'rgba(0, 230, 118, 0.28)' : 'rgba(255, 23, 68, 0.28)');
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     } catch(e) { return; }
 
@@ -714,26 +919,75 @@ function initializeStockPriceChart() {
         data: {
             labels: labels,
             datasets: [
-                { label: 'Price', data: prices, borderColor: lineColor, backgroundColor: gradient, borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 6 },
-                { label: 'SMA 10', data: sma10, borderColor: 'rgba(255, 193, 7, 0.6)', borderWidth: 1.5, fill: false, tension: 0.4, pointRadius: 0, borderDash: [5,5] },
-                { label: 'SMA 30', data: sma30, borderColor: 'rgba(156, 39, 176, 0.6)', borderWidth: 1.5, fill: false, tension: 0.4, pointRadius: 0, borderDash: [8,4] }
+                {
+                    label: 'Price',
+                    data: prices,
+                    borderColor: lineColor,
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: lineColor,
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 2
+                },
+                {
+                    label: 'SMA 10',
+                    data: sma10,
+                    borderColor: '#ffb300',
+                    borderWidth: 1.5,
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    borderDash: [5, 5]
+                },
+                {
+                    label: 'SMA 30',
+                    data: sma30,
+                    borderColor: '#ab47bc',
+                    borderWidth: 1.5,
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    borderDash: [8, 4]
+                }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            animation: {
+                duration: 850,
+                easing: 'easeOutQuart'
+            },
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { labels: { color: '#90caf9', font: { size: 11 }, boxWidth: 12, padding: 15 } },
+                legend: {
+                    labels: { color: '#90caf9', font: { size: 11, weight: '500' }, boxWidth: 12, padding: 15 }
+                },
                 tooltip: {
-                    backgroundColor: 'rgba(10, 25, 41, 0.9)', titleColor: '#fff', bodyColor: '#90caf9',
-                    borderColor: 'rgba(76, 175, 80, 0.3)', borderWidth: 1, padding: 12,
+                    backgroundColor: 'rgba(10, 25, 41, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#90caf9',
+                    borderColor: 'rgba(0, 230, 118, 0.3)',
+                    borderWidth: 1,
+                    padding: 12,
                     callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + currency + ctx.parsed.y.toFixed(2); } }
                 }
             },
             scales: {
-                x: { grid: { color: 'rgba(30, 58, 95, 0.3)', display: false }, ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 10 } } },
-                y: { grid: { color: 'rgba(30, 58, 95, 0.3)' }, ticks: { color: '#64748b', font: { size: 10 }, callback: function(v) { return currency + v.toFixed(0); } } }
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.04)', display: false },
+                    ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 10 } }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#64748b', font: { size: 10 }, callback: function(v) { return currency + v.toFixed(0); } }
+                }
             }
         }
     });
@@ -750,17 +1004,19 @@ function initializePerformanceChart() {
     if (Object.keys(modelData).length === 0) return;
 
     const modelNames = Object.keys(modelData);
-    const metrics = ['accuracy','precision','recall','f1_score'];
-    const colors = ['rgba(76, 175, 80, 0.8)','rgba(33, 150, 243, 0.8)','rgba(255, 152, 0, 0.8)','rgba(156, 39, 176, 0.8)'];
+    const metrics = ['accuracy', 'precision', 'recall', 'f1_score'];
+    const colors = ['rgba(0, 230, 118, 0.85)', 'rgba(33, 150, 243, 0.85)', 'rgba(255, 152, 0, 0.85)', 'rgba(156, 39, 176, 0.85)'];
 
     const datasets = metrics.map(function(m, i) {
         return {
-            label: m.replace('_',' ').toUpperCase(),
+            label: m.replace('_', ' ').toUpperCase(),
             data: modelNames.map(function(n) { return (modelData[n][m] * 100).toFixed(1); }),
             backgroundColor: colors[i],
-            borderColor: colors[i].replace('0.8','1'),
-            borderWidth: 1,
-            borderRadius: 4
+            borderColor: colors[i].replace('0.85', '1'),
+            borderWidth: 1.5,
+            borderRadius: 6,
+            hoverBorderColor: '#ffffff',
+            hoverBorderWidth: 2
         };
     });
 
@@ -768,14 +1024,27 @@ function initializePerformanceChart() {
         type: 'bar',
         data: { labels: modelNames, datasets: datasets },
         options: {
-            responsive: true, maintainAspectRatio: true,
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: {
+                duration: 800,
+                easing: 'easeOutQuart'
+            },
             plugins: {
-                legend: { labels: { color: '#90caf9', font: { size: 11 }, boxWidth: 12, padding: 15 } },
-                tooltip: { backgroundColor: 'rgba(10, 25, 41, 0.9)', titleColor: '#fff', bodyColor: '#90caf9', borderColor: 'rgba(76, 175, 80, 0.3)', borderWidth: 1, padding: 12, callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y + '%'; } } }
+                legend: { labels: { color: '#90caf9', font: { size: 11, weight: '500' }, boxWidth: 12, padding: 15 } },
+                tooltip: {
+                    backgroundColor: 'rgba(10, 25, 41, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#90caf9',
+                    borderColor: 'rgba(0, 230, 118, 0.3)',
+                    borderWidth: 1,
+                    padding: 12,
+                    callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y + '%'; } }
+                }
             },
             scales: {
-                x: { grid: { color: 'rgba(30, 58, 95, 0.3)' }, ticks: { color: '#90caf9', font: { size: 11 } } },
-                y: { beginAtZero: true, max: 100, grid: { color: 'rgba(30, 58, 95, 0.3)' }, ticks: { color: '#64748b', font: { size: 10 }, callback: function(v) { return v + '%'; } } }
+                x: { grid: { color: 'rgba(255, 255, 255, 0.04)' }, ticks: { color: '#90caf9', font: { size: 11 } } },
+                y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b', font: { size: 10 }, callback: function(v) { return v + '%'; } } }
             }
         }
     });
@@ -793,7 +1062,7 @@ function initializeConfusionMatrix() {
     if (matrix.length === 0) return;
 
     const data = [];
-    const maxVal = Math.max(...matrix.flat());
+    const maxVal = Math.max(...matrix.flat()) || 1;
     matrix.forEach(function(row, i) {
         row.forEach(function(val, j) {
             data.push({ x: labels[j], y: labels[i], v: val });
@@ -807,29 +1076,40 @@ function initializeConfusionMatrix() {
                 data: data,
                 backgroundColor: function(ctx) {
                     const val = ctx.dataset.data[ctx.dataIndex].v;
-                    return 'rgba(76, 175, 80, ' + (val / maxVal) + ')';
+                    return 'rgba(0, 230, 118, ' + (0.15 + 0.75 * (val / maxVal)) + ')';
                 },
-                borderColor: 'rgba(30, 58, 95, 0.5)',
-                borderWidth: 1,
-                width: 60, height: 60
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1.5,
+                borderRadius: 8,
+                width: 65,
+                height: 65
             }]
         },
         options: {
-            responsive: true, maintainAspectRatio: true,
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: {
+                duration: 750,
+                easing: 'easeOutQuart'
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(10, 25, 41, 0.9)', titleColor: '#fff', bodyColor: '#90caf9',
-                    borderColor: 'rgba(76, 175, 80, 0.3)', borderWidth: 1, padding: 12,
+                    backgroundColor: 'rgba(10, 25, 41, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#90caf9',
+                    borderColor: 'rgba(0, 230, 118, 0.3)',
+                    borderWidth: 1,
+                    padding: 12,
                     callbacks: {
-                        title: function(ctx) { return 'Predicted: ' + ctx[0].raw.x + ' / Actual: ' + ctx[0].raw.y; },
-                        label: function(ctx) { return 'Count: ' + ctx.raw.v; }
+                        title: function(ctx) { return 'Predicted: ' + ctx[0].raw.x + ' | Actual: ' + ctx[0].raw.y; },
+                        label: function(ctx) { return 'Instances: ' + ctx.raw.v; }
                     }
                 }
             },
             scales: {
-                x: { type: 'category', labels: labels, offset: true, grid: { display: false }, ticks: { color: '#90caf9', font: { size: 11 } }, title: { display: true, text: 'Predicted', color: '#64748b', font: { size: 12 } } },
-                y: { type: 'category', labels: labels, offset: true, grid: { display: false }, ticks: { color: '#90caf9', font: { size: 11 } }, title: { display: true, text: 'Actual', color: '#64748b', font: { size: 12 } } }
+                x: { type: 'category', labels: labels, offset: true, grid: { display: false }, ticks: { color: '#90caf9', font: { size: 11, weight: '600' } }, title: { display: true, text: 'Predicted Signal', color: '#64748b', font: { size: 11 } } },
+                y: { type: 'category', labels: labels, offset: true, grid: { display: false }, ticks: { color: '#90caf9', font: { size: 11, weight: '600' } }, title: { display: true, text: 'Actual Signal', color: '#64748b', font: { size: 11 } } }
             }
         }
     });
@@ -854,20 +1134,32 @@ function initializeESGDistributionChart() {
         data: {
             labels: tickers,
             datasets: [
-                { label: 'Environmental', data: envScores, backgroundColor: 'rgba(33, 150, 243, 0.7)', borderColor: '#2196F3', borderWidth: 1, borderRadius: 2 },
-                { label: 'Social', data: socialScores, backgroundColor: 'rgba(255, 152, 0, 0.7)', borderColor: '#FF9800', borderWidth: 1, borderRadius: 2 },
-                { label: 'Governance', data: govScores, backgroundColor: 'rgba(156, 39, 176, 0.7)', borderColor: '#9C27B0', borderWidth: 1, borderRadius: 2 }
+                { label: 'Environmental', data: envScores, backgroundColor: 'rgba(33, 150, 243, 0.85)', borderColor: '#2196F3', borderWidth: 1.5, borderRadius: 4, hoverBorderColor: '#ffffff' },
+                { label: 'Social', data: socialScores, backgroundColor: 'rgba(255, 152, 0, 0.85)', borderColor: '#FF9800', borderWidth: 1.5, borderRadius: 4, hoverBorderColor: '#ffffff' },
+                { label: 'Governance', data: govScores, backgroundColor: 'rgba(156, 39, 176, 0.85)', borderColor: '#9C27B0', borderWidth: 1.5, borderRadius: 4, hoverBorderColor: '#ffffff' }
             ]
         },
         options: {
-            responsive: true, maintainAspectRatio: true,
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: {
+                duration: 800,
+                easing: 'easeOutQuart'
+            },
             plugins: {
-                legend: { labels: { color: '#90caf9', font: { size: 11 }, boxWidth: 12, padding: 15 } },
-                tooltip: { backgroundColor: 'rgba(10, 25, 41, 0.9)', titleColor: '#fff', bodyColor: '#90caf9', borderColor: 'rgba(76, 175, 80, 0.3)', borderWidth: 1, padding: 12 }
+                legend: { labels: { color: '#90caf9', font: { size: 11, weight: '500' }, boxWidth: 12, padding: 15 } },
+                tooltip: {
+                    backgroundColor: 'rgba(10, 25, 41, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#90caf9',
+                    borderColor: 'rgba(0, 230, 118, 0.3)',
+                    borderWidth: 1,
+                    padding: 12
+                }
             },
             scales: {
-                x: { grid: { color: 'rgba(30, 58, 95, 0.3)' }, ticks: { color: '#90caf9', font: { size: 10 } } },
-                y: { beginAtZero: true, max: 100, grid: { color: 'rgba(30, 58, 95, 0.3)' }, ticks: { color: '#64748b', font: { size: 10 } } }
+                x: { grid: { color: 'rgba(255, 255, 255, 0.04)' }, ticks: { color: '#90caf9', font: { size: 10 } } },
+                y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } }
             }
         }
     });
@@ -987,6 +1279,9 @@ function addUserMessage(text) {
     div.className = 'chat-message user';
     div.innerHTML = '<div class="chat-bubble user-bubble">' + escapeHtml(text) + '</div>';
     messages.appendChild(div);
+    if (window.ESGMotion && window.ESGMotion.animateFadeUp) {
+        window.ESGMotion.animateFadeUp(div, { duration: 0.22, y: 8 });
+    }
     messages.scrollTop = messages.scrollHeight;
 }
 
@@ -997,6 +1292,9 @@ function addBotMessage(text, isLoading) {
     div.className = 'chat-message bot' + (isLoading ? ' loading-msg' : '');
     div.innerHTML = '<div class="chat-bubble bot-bubble">' + (isLoading ? '<div class="spinner-border spinner-border-sm me-2" role="status"></div> Thinking...' : formatBotMessage(text)) + '</div>';
     messages.appendChild(div);
+    if (window.ESGMotion && window.ESGMotion.animateFadeUp) {
+        window.ESGMotion.animateFadeUp(div, { duration: 0.22, y: 8 });
+    }
     messages.scrollTop = messages.scrollHeight;
 }
 
@@ -1067,11 +1365,26 @@ function showToast(message, type) {
     toast.className = 'toast-custom ' + type;
     toast.innerHTML = '<i class="bi ' + icon + '"></i> ' + escapeHtml(message);
     container.appendChild(toast);
+
+    if (window.ESGMotion && window.ESGMotion.animateFadeUp) {
+        window.ESGMotion.animateFadeUp(toast, { duration: 0.28, y: 12 });
+    }
+
     setTimeout(function() {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        toast.style.transition = 'all 0.3s ease';
-        setTimeout(function() { toast.remove(); }, 300);
+        var M = window.Motion;
+        if (M && M.animate && !(window.ESGMotion && window.ESGMotion.isReducedMotion())) {
+            var anim = M.animate(toast, { opacity: [1, 0], x: [0, 40] }, { duration: 0.25 });
+            if (anim && anim.finished) {
+                anim.finished.then(function() { toast.remove(); });
+            } else {
+                setTimeout(function() { toast.remove(); }, 260);
+            }
+        } else {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(function() { toast.remove(); }, 300);
+        }
     }, 3500);
 }
 
@@ -1378,11 +1691,13 @@ function initializeRouter() {
         if (!href || href === '#' || href.startsWith('javascript:') || link.getAttribute('onclick') || link.getAttribute('target')) return;
 
         e.preventDefault();
+        if (window.closeSidebar) window.closeSidebar(true);
         navigateTo(href);
     });
 
     // Handle browser back/forward buttons
     window.addEventListener('popstate', function(e) {
+        if (window.closeSidebar) window.closeSidebar(true);
         if (e.state && e.state.path) {
             loadPage(e.state.path, false);
         }
@@ -1390,6 +1705,7 @@ function initializeRouter() {
 }
 
 function navigateTo(path, addToHistory) {
+    if (window.closeSidebar) window.closeSidebar(true);
     if (addToHistory !== false) {
         history.pushState({path: path}, '', path);
     }
@@ -1459,6 +1775,7 @@ function hideLoadingBar() {
 }
 
 function loadPage(path) {
+    if (window.closeSidebar) window.closeSidebar(true);
     var container = document.querySelector('.main-content');
     if (!container) {
         // Fallback to full page load if no SPA container found
@@ -1545,6 +1862,7 @@ function loadPage(path) {
             }
             function afterScripts() {
                 hideLoadingBar();
+                if (window.closeSidebar) window.closeSidebar(true);
                 setTimeout(function() {
                     initializePageContent();
                     initializeTicker();
@@ -1612,17 +1930,38 @@ function renderCandlestickChart(ticker, timeframe) {
         layout: {
             background: { type: 'solid', color: 'transparent' },
             textColor: isDark ? '#90caf9' : '#4a5568',
+            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            fontSize: 11
         },
         grid: {
-            vertLines: { color: isDark ? 'rgba(30,58,95,0.5)' : 'rgba(226,232,240,0.5)' },
-            horzLines: { color: isDark ? 'rgba(30,58,95,0.5)' : 'rgba(226,232,240,0.5)' },
+            vertLines: { color: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)' },
+            horzLines: { color: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)' },
         },
-        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: {
+                color: 'rgba(0, 230, 118, 0.5)',
+                width: 1,
+                style: LightweightCharts.LineStyle.Dashed,
+                labelBackgroundColor: '#0e223d',
+            },
+            horzLine: {
+                color: 'rgba(0, 230, 118, 0.5)',
+                width: 1,
+                style: LightweightCharts.LineStyle.Dashed,
+                labelBackgroundColor: '#0e223d',
+            },
+        },
         rightPriceScale: {
-            borderColor: isDark ? '#1e3a5f' : '#e2e8f0',
-            scaleMargins: { top: 0.05, bottom: 0.05 },
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+            scaleMargins: { top: 0.08, bottom: 0.08 },
+            alignLabels: true,
         },
-        timeScale: { borderColor: isDark ? '#1e3a5f' : '#e2e8f0' },
+        timeScale: {
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+            timeVisible: true,
+            secondsVisible: false,
+        },
         width: container.clientWidth,
         height: 380,
     });
@@ -1643,43 +1982,49 @@ function renderCandlestickChart(ticker, timeframe) {
     }
     
     var candleSeries = candleChart.addCandlestickSeries({
-        upColor: '#00e676', downColor: '#ff1744',
-        borderDownColor: '#ff1744', borderUpColor: '#00e676',
-        wickDownColor: '#ff1744', wickUpColor: '#00e676',
+        upColor: '#00e676',
+        downColor: '#ff1744',
+        borderDownColor: '#ff1744',
+        borderUpColor: '#00e676',
+        wickDownColor: '#ff1744',
+        wickUpColor: '#00e676',
     });
     
     var volumeSeries = null;
     if (volumeChart) {
         volumeSeries = volumeChart.addHistogramSeries({
-            color: 'rgba(0, 230, 118, 0.4)',
+            color: 'rgba(0, 230, 118, 0.45)',
             priceFormat: { type: 'volume' },
         });
     }
     
     var sma10Series = candleChart.addLineSeries({
-        color: 'rgba(255, 193, 7, 0.6)', lineWidth: 1,
-        priceLineVisible: false, lastValueVisible: false, title: 'SMA 10',
+        color: '#ffb300',
+        lineWidth: 1.5,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        title: 'SMA 10',
     });
     var sma30Series = candleChart.addLineSeries({
-        color: 'rgba(156, 39, 176, 0.6)', lineWidth: 1,
-        priceLineVisible: false, lastValueVisible: false, title: 'SMA 30',
+        color: '#ab47bc',
+        lineWidth: 1.5,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        title: 'SMA 30',
         lineStyle: LightweightCharts.LineStyle.Dashed,
     });
     
-    document.getElementById('candlePriceInfo').textContent = 'Loading...';
+    var priceInfoEl = document.getElementById('candlePriceInfo');
+    if (priceInfoEl) priceInfoEl.textContent = 'Loading historical series...';
     
     var period = timeframe || '1y';
     fetch('/api/candlestick/' + ticker + '?period=' + period, { credentials: 'same-origin', redirect: 'error' })
         .then(function(r) {
-            if (!r.ok) {
-                throw new Error('HTTP ' + r.status + ' ' + r.statusText);
-            }
+            if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
             return r.json();
         })
         .then(function(data) {
-            // Guard against stale callbacks from previous renders
             if (_candleGen !== myGen) { _candleRendering = false; return; }
-            // Check that the chart container still exists in the DOM (showLoading may have destroyed it)
             var candleContainer = document.getElementById('tvCandleChart');
             if (!candleContainer || candleContainer.children.length === 0) {
                 _candleRendering = false;
@@ -1687,15 +2032,13 @@ function renderCandlestickChart(ticker, timeframe) {
             }
             if (data.error) {
                 _candleRendering = false;
-                document.getElementById('candlePriceInfo').textContent = 'Chart unavailable';
+                if (priceInfoEl) priceInfoEl.textContent = 'Chart unavailable';
                 return;
             }
             var candleData = data.data || [];
             if (candleData.length === 0) return;
             
-            // Filter out any data points with null/NaN values (prevents LightweightCharts 'Value is null' errors)
             var validData = candleData.filter(function(c) {
-                // t can be a number (Unix seconds) or a string ('YYYY-MM-DD')
                 var validTime = c && c.t != null && c.t !== '' && (typeof c.t === 'number' || typeof c.t === 'string');
                 return validTime &&
                     typeof c.o === 'number' && isFinite(c.o) &&
@@ -1705,27 +2048,20 @@ function renderCandlestickChart(ticker, timeframe) {
                     typeof c.v === 'number' && isFinite(c.v);
             });
             if (validData.length === 0) {
-                document.getElementById('candlePriceInfo').textContent = 'No valid data available';
+                if (priceInfoEl) priceInfoEl.textContent = 'No valid data available';
                 return;
             }
             
-            // Format for LightweightCharts (accepts Unix seconds or 'YYYY-MM-DD' strings)
             var fmtCandles = validData.map(function(c) {
                 var time = typeof c.t === 'number' ? Math.floor(c.t) : c.t;
-                return {
-                    time: time,
-                    open: c.o,
-                    high: c.h,
-                    low: c.l,
-                    close: c.c
-                };
+                return { time: time, open: c.o, high: c.h, low: c.l, close: c.c };
             });
             var fmtVolume = validData.map(function(c, i) {
                 var up = i === 0 || c.c >= validData[i-1].c;
                 return {
                     time: typeof c.t === 'number' ? Math.floor(c.t) : c.t,
                     value: c.v,
-                    color: up ? 'rgba(0,230,118,0.4)' : 'rgba(255,23,68,0.4)'
+                    color: up ? 'rgba(0,230,118,0.5)' : 'rgba(255,23,68,0.5)'
                 };
             });
             
@@ -1740,21 +2076,12 @@ function renderCandlestickChart(ticker, timeframe) {
                 return r;
             }
             
-            // Null-check series objects before calling setData (prevents errors on destroyed charts)
-            try { candleSeries.setData(fmtCandles); } catch(e) {
-                if (!e || !e.message || e.message.indexOf('Value is null') === -1) console.warn('Candle setData error:', e);
-            }
+            try { candleSeries.setData(fmtCandles); } catch(e) { console.warn('Candle setData error:', e); }
             if (volumeSeries) {
-                try { volumeSeries.setData(fmtVolume); } catch(e) {
-                    if (!e || !e.message || e.message.indexOf('Value is null') === -1) console.warn('Volume setData error:', e);
-                }
+                try { volumeSeries.setData(fmtVolume); } catch(e) { console.warn('Volume setData error:', e); }
             }
-            try { sma10Series.setData(calcSMA(validData, 10)); } catch(e) {
-                if (!e || !e.message || e.message.indexOf('Value is null') === -1) console.warn('SMA10 setData error:', e);
-            }
-            try { sma30Series.setData(calcSMA(validData, 30)); } catch(e) {
-                if (!e || !e.message || e.message.indexOf('Value is null') === -1) console.warn('SMA30 setData error:', e);
-            }
+            try { sma10Series.setData(calcSMA(validData, 10)); } catch(e) { console.warn('SMA10 setData error:', e); }
+            try { sma30Series.setData(calcSMA(validData, 30)); } catch(e) { console.warn('SMA30 setData error:', e); }
             
             if (data.patterns && data.patterns.length > 0) {
                 var markers = data.patterns.slice(0,5).filter(function(p) {
@@ -1774,29 +2101,50 @@ function renderCandlestickChart(ticker, timeframe) {
                 if (pl) pl.textContent = data.patterns.slice(-2).map(function(p) { return p.pattern; }).join(' | ');
             }
             
-            try {
-                var last = validData[validData.length-1];
-                if (last && isFinite(last.c) && isFinite(validData[0].c)) {
-                    var chg = ((last.c - validData[0].c) / validData[0].c * 100).toFixed(2);
-                    var pi = document.getElementById('candlePriceInfo');
-                    if (pi) pi.innerHTML = 
-                        'O:' + last.o.toFixed(2) + ' H:' + last.h.toFixed(2) + ' L:' + last.l.toFixed(2) + ' C:' + last.c.toFixed(2) +
-                        ' <span style="color:' + (chg>=0?'#00e676':'#ff1744') + ';">' + (chg>=0?'+':'') + chg + '%</span>' +
-                        ' Vol:' + (last.v/1000000).toFixed(1) + 'M';
+            // Format default summary
+            var last = validData[validData.length-1];
+            function formatPriceSummary(bar, timeLabel) {
+                if (!priceInfoEl || !bar) return;
+                var chg = ((bar.close - bar.open) / bar.open * 100).toFixed(2);
+                var isPos = chg >= 0;
+                var dateStr = timeLabel ? '<span class="text-secondary me-2">[' + timeLabel + ']</span>' : '';
+                priceInfoEl.innerHTML = dateStr +
+                    'O: <span class="text-white fw-bold">' + bar.open.toFixed(2) + '</span> ' +
+                    'H: <span class="text-white fw-bold">' + bar.high.toFixed(2) + '</span> ' +
+                    'L: <span class="text-white fw-bold">' + bar.low.toFixed(2) + '</span> ' +
+                    'C: <span class="text-white fw-bold">' + bar.close.toFixed(2) + '</span> ' +
+                    '<span class="badge ' + (isPos ? 'bg-success' : 'bg-danger') + ' ms-1">' + (isPos ? '+' : '') + chg + '%</span>' +
+                    (bar.volume ? ' <span class="text-secondary ms-2">Vol: ' + (bar.volume/1000000).toFixed(1) + 'M</span>' : '');
+            }
+
+            if (last) {
+                formatPriceSummary({ open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v });
+            }
+
+            // Real-Time Crosshair Subscription
+            candleChart.subscribeCrosshairMove(function(param) {
+                if (!param.point || !param.time) {
+                    if (last) formatPriceSummary({ open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v });
+                    return;
                 }
-            } catch(e) { console.warn('Price info error:', e); }
+                var candleDataPoint = param.seriesData.get(candleSeries);
+                if (candleDataPoint) {
+                    var volVal = volumeSeries ? param.seriesData.get(volumeSeries) : null;
+                    var timeStr = typeof param.time === 'object' ? (param.time.year + '-' + param.time.month + '-' + param.time.day) : String(param.time);
+                    formatPriceSummary({
+                        open: candleDataPoint.open,
+                        high: candleDataPoint.high,
+                        low: candleDataPoint.low,
+                        close: candleDataPoint.close,
+                        volume: volVal ? volVal.value : null
+                    }, timeStr);
+                }
+            });
             
             try { candleChart.timeScale().fitContent(); } catch(e) { console.warn('fitContent error:', e); }
         })
         .catch(function(err) { 
-            var pi = document.getElementById('candlePriceInfo');
-            if (pi) {
-                if (err && err.message) {
-                    pi.textContent = 'Chart: ' + err.message.substring(0, 40);
-                } else {
-                    pi.textContent = 'Chart load failed';
-                }
-            }
+            if (priceInfoEl) priceInfoEl.textContent = 'Chart unavailable';
             console.error('Candlestick fetch error:', err);
         })
         .finally(function() {
@@ -1811,7 +2159,7 @@ function renderCandlestickChart(ticker, timeframe) {
     window.addEventListener('resize', _candleResizeHandler);
 }
 
-// Timeframe switching - delegate to document
+// Timeframe switching with smooth transition
 if (!window._candleTimeframeHandler) {
     window._candleTimeframeHandler = true;
     document.addEventListener('click', function(e) {
@@ -1819,6 +2167,11 @@ if (!window._candleTimeframeHandler) {
         if (!btn) return;
         document.querySelectorAll('.candle-timeframe').forEach(function(b) { b.classList.remove('active'); });
         btn.classList.add('active');
+        var container = document.getElementById('tvCandleChart');
+        if (container) {
+            container.classList.add('chart-fade-swap');
+            setTimeout(function() { container.classList.remove('chart-fade-swap'); }, 300);
+        }
         var ticker = document.getElementById('tickerSelect');
         if (ticker && ticker.value) renderCandlestickChart(ticker.value, btn.getAttribute('data-tf'));
     });
@@ -1906,8 +2259,16 @@ var _modalCurrency = '$';
 
 function closeBuyModal() {
     var overlay = document.getElementById('buyModalOverlay');
-    if (overlay) overlay.style.display = 'none';
-    resetModal();
+    if (overlay) {
+        if (window.ESGMotion && window.ESGMotion.animateModalClose) {
+            window.ESGMotion.animateModalClose(overlay, resetModal);
+        } else {
+            overlay.style.display = 'none';
+            resetModal();
+        }
+    } else {
+        resetModal();
+    }
 }
 
 function resetModal() {
@@ -1927,8 +2288,11 @@ function showBuyModal() {
     resetModal();
     var overlay = document.getElementById('buyModalOverlay');
     if (overlay) {
-        overlay.style.display = 'flex';
-        overlay.style.animation = 'fadeIn 0.2s ease';
+        if (window.ESGMotion && window.ESGMotion.animateModalOpen) {
+            window.ESGMotion.animateModalOpen(overlay);
+        } else {
+            overlay.style.display = 'flex';
+        }
     }
     // Auto-fetch live price badge
     var badge = document.getElementById('livePriceBadge');
@@ -2085,10 +2449,18 @@ function loadPortfolio() {
     .then(function(data) {
         var holdings = data.holdings;
         var tbody = document.getElementById('portfolioBody');
+        var countBadge = document.getElementById('holdingsCountBadge');
         if (!tbody) return;
         tbody.innerHTML = '';
+        if (countBadge) countBadge.textContent = (holdings ? holdings.length : 0) + ' Positions';
+
         if (!holdings || !holdings.length) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No holdings yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted">' +
+                '<i class="bi bi-wallet2 text-esg" style="font-size: 2.5rem; opacity: 0.5;"></i>' +
+                '<h6 class="mt-2 text-white">No active holdings recorded</h6>' +
+                '<p class="small text-secondary mb-2">Build your sustainable portfolio by adding positions.</p>' +
+                '<button class="btn btn-esg btn-sm px-3 py-1" onclick="openBuyModal()"><i class="bi bi-plus-lg me-1"></i> Add First Position</button>' +
+                '</td></tr>';
             updatePortfolioStats(0, 0, 0);
             if (window.alloChart) { window.alloChart.destroy(); window.alloChart = null; }
             return;
@@ -2098,7 +2470,10 @@ function loadPortfolio() {
         .then(function(r) { return r.json(); })
         .then(function(prices) {
             var totalValue = 0, totalCost = 0;
+            var rowsHtml = '';
             holdings.forEach(function(h) {
+                var isIndian = h.ticker.endsWith('.NS') || h.ticker.endsWith('.BO') || ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK', 'SBIN', 'BHARTIARTL', 'ITC', 'KOTAKBANK', 'LT'].indexOf(h.ticker) !== -1;
+                var sym = isIndian ? '₹' : '$';
                 var p = prices[h.ticker];
                 var currentPrice = p ? p.price : h.buy_price;
                 var value = currentPrice * h.shares;
@@ -2107,38 +2482,51 @@ function loadPortfolio() {
                 var ret = cost > 0 ? ((pnl / cost) * 100) : 0;
                 totalValue += value;
                 totalCost += cost;
-                tbody.innerHTML += '<tr data-ticker="' + h.ticker + '">' +
-                    '<td><strong>' + h.ticker + '</strong></td>' +
-                    '<td>' + h.shares + '</td>' +
-                    '<td>$' + h.buy_price.toFixed(2) + '</td>' +
-                    '<td>$' + currentPrice.toFixed(2) + '</td>' +
-                    '<td>$' + value.toFixed(2) + '</td>' +
-                    '<td class="' + (pnl >= 0 ? 'text-success' : 'text-danger') + '">' + (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2) + '</td>' +
-                    '<td class="' + (pnl >= 0 ? 'text-success' : 'text-danger') + '">' + (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%</td>' +
-                    '<td>' +
-                        '<button class="btn btn-sm btn-success" onclick="quickBuy(\'' + h.ticker + '\')"><i class="bi bi-plus-lg"></i></button> ' +
-                        '<button class="btn btn-sm btn-danger" onclick="quickSell(\'' + h.ticker + '\')"><i class="bi bi-dash-lg"></i></button>' +
+
+                var pnlBadgeClass = pnl >= 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle';
+                var pnlSign = pnl >= 0 ? '+' : '-';
+
+                rowsHtml += '<tr data-ticker="' + h.ticker + '">' +
+                    '<td><strong class="text-white" style="font-size:0.95rem;">' + h.ticker + '</strong></td>' +
+                    '<td><span class="badge bg-secondary-subtle text-light border border-secondary border-opacity-25">' + h.shares + '</span></td>' +
+                    '<td>' + sym + h.buy_price.toFixed(2) + '</td>' +
+                    '<td class="text-info fw-bold">' + sym + currentPrice.toFixed(2) + '</td>' +
+                    '<td class="text-light fw-bold">' + sym + value.toFixed(2) + '</td>' +
+                    '<td><span class="badge ' + pnlBadgeClass + ' px-2 py-1" style="font-size:0.75rem;">' + pnlSign + sym + Math.abs(pnl).toFixed(2) + '</span></td>' +
+                    '<td><span class="fw-bold ' + (ret >= 0 ? 'text-success' : 'text-danger') + '">' + (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%</span></td>' +
+                    '<td class="text-end">' +
+                        '<div class="btn-group btn-group-sm">' +
+                            '<button class="btn btn-outline-success py-0.5 px-2" onclick="quickBuy(\'' + h.ticker + '\')" title="Buy More"><i class="bi bi-plus-lg"></i></button>' +
+                            '<button class="btn btn-outline-danger py-0.5 px-2" onclick="quickSell(\'' + h.ticker + '\')" title="Sell Position"><i class="bi bi-dash-lg"></i></button>' +
+                        '</div>' +
                     '</td></tr>';
             });
+            tbody.innerHTML = rowsHtml;
             updatePortfolioStats(totalCost, totalValue, totalValue - totalCost);
             drawAllocationChart(holdings, prices);
         })
         .catch(function() {
             showToast('Failed to load current prices', 'warning');
+            var rowsHtml = '';
             holdings.forEach(function(h) {
-                tbody.innerHTML += '<tr data-ticker="' + h.ticker + '">' +
-                    '<td><strong>' + h.ticker + '</strong></td>' +
-                    '<td>' + h.shares + '</td>' +
-                    '<td>$' + h.buy_price.toFixed(2) + '</td>' +
+                var isIndian = h.ticker.endsWith('.NS') || h.ticker.endsWith('.BO') || ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK', 'SBIN', 'BHARTIARTL', 'ITC', 'KOTAKBANK', 'LT'].indexOf(h.ticker) !== -1;
+                var sym = isIndian ? '₹' : '$';
+                rowsHtml += '<tr data-ticker="' + h.ticker + '">' +
+                    '<td><strong class="text-white">' + h.ticker + '</strong></td>' +
+                    '<td><span class="badge bg-secondary-subtle text-light">' + h.shares + '</span></td>' +
+                    '<td>' + sym + h.buy_price.toFixed(2) + '</td>' +
                     '<td class="text-muted">--</td>' +
                     '<td class="text-muted">--</td>' +
                     '<td class="text-muted">--</td>' +
                     '<td class="text-muted">--</td>' +
-                    '<td>' +
-                        '<button class="btn btn-sm btn-success" onclick="quickBuy(\'' + h.ticker + '\')"><i class="bi bi-plus-lg"></i></button> ' +
-                        '<button class="btn btn-sm btn-danger" onclick="quickSell(\'' + h.ticker + '\')"><i class="bi bi-dash-lg"></i></button>' +
+                    '<td class="text-end">' +
+                        '<div class="btn-group btn-group-sm">' +
+                            '<button class="btn btn-outline-success py-0.5 px-2" onclick="quickBuy(\'' + h.ticker + '\')"><i class="bi bi-plus-lg"></i></button>' +
+                            '<button class="btn btn-outline-danger py-0.5 px-2" onclick="quickSell(\'' + h.ticker + '\')"><i class="bi bi-dash-lg"></i></button>' +
+                        '</div>' +
                     '</td></tr>';
             });
+            tbody.innerHTML = rowsHtml;
             updatePortfolioStats(0, 0, 0);
         });
     })
@@ -2155,7 +2543,7 @@ function updatePortfolioStats(cost, value, pnl) {
     if (retEl) {
         var ret = cost > 0 ? (pnl / cost) * 100 : 0;
         retEl.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%';
-        retEl.style.color = ret >= 0 ? 'var(--green)' : 'var(--red)';
+        retEl.className = 'stat-value fw-bold h3 mb-1 counter-val ' + (ret >= 0 ? 'text-success' : 'text-danger');
     }
 }
 function drawAllocationChart(holdings, prices) {
@@ -2165,9 +2553,8 @@ function drawAllocationChart(holdings, prices) {
         var p = prices[h.ticker];
         return p ? p.price * h.shares : h.buy_price * h.shares;
     });
-    var colors = ['#4e73df','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#5a5c69',
-                    '#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107',
-                    '#198754','#20c997','#0dcaf0','#0d6efd','#6610f2','#6f42c1'];
+    var totalPortfolioValue = data.reduce(function(acc, val) { return acc + val; }, 0) || 1;
+    var colors = ['#00e676', '#2196f3', '#ff9800', '#9c27b0', '#00bcd4', '#e91e63', '#ff5722', '#ffeb3b', '#795548', '#607d8b'];
     var canvas = document.getElementById('allocationChart');
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
@@ -2181,14 +2568,47 @@ function drawAllocationChart(holdings, prices) {
                 data: data,
                 backgroundColor: colors.slice(0, labels.length),
                 borderWidth: 2,
-                borderColor: '#fff'
+                borderColor: 'rgba(8, 20, 36, 0.95)',
+                hoverBorderColor: '#ffffff',
+                hoverBorderWidth: 2,
+                hoverOffset: 10
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 900,
+                easing: 'easeOutQuart'
+            },
             plugins: {
-                legend: { position: 'right', labels: { padding: 15, color: 'var(--text-primary)' } }
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 12,
+                        color: '#90caf9',
+                        font: { size: 11, weight: '500' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(10, 25, 41, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#90caf9',
+                    borderColor: 'rgba(0, 230, 118, 0.3)',
+                    borderWidth: 1,
+                    padding: 12,
+                    callbacks: {
+                        label: function(ctx) {
+                            var val = ctx.parsed;
+                            var pct = ((val / totalPortfolioValue) * 100).toFixed(1);
+                            return ' Value: $' + val.toFixed(2) + ' (' + pct + '%)';
+                        }
+                    }
+                }
             }
         }
     });

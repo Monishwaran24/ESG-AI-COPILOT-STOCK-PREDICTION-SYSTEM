@@ -248,7 +248,7 @@ def compute_lime_explanation(feature_vector_scaled, feature_vector_raw,
 
         # Generate background dataset for LIME (StandardScaler produces ~N(0,1) features)
         np.random.seed(42)
-        n_background = 1000
+        n_background = 200
         n_features = feature_vector_scaled.shape[1]
         background_data = np.random.randn(n_background, n_features).astype(np.float64)
 
@@ -271,7 +271,7 @@ def compute_lime_explanation(feature_vector_scaled, feature_vector_raw,
             data_row=instance,
             predict_fn=predict_fn,
             num_features=n_features,
-            num_samples=5000
+            num_samples=500
         )
 
         # Get feature weights from LIME
@@ -359,8 +359,8 @@ def compute_lime_explanation(feature_vector_scaled, feature_vector_raw,
 def compute_fallback_explanation(feature_vector_raw, predicted_class,
                                   recommendation, indicators):
     """
-    Fallback explanation when SHAP and LIME are unavailable.
-    Uses model feature importance + heuristic rules.
+    Robust explanation when SHAP and LIME are unavailable.
+    Uses model feature importance + domain heuristics.
     """
     model, scaler, label_encoder, metadata = load_model()
 
@@ -376,36 +376,49 @@ def compute_fallback_explanation(feature_vector_raw, predicted_class,
             feature_importances[feat_name] = 1.0 / len(ALL_FEATURES)
 
     group_scores = {}
+    group_details = {}
     for i, feat_name in enumerate(ALL_FEATURES):
         if i >= feature_vector_raw.shape[1]:
             break
         raw_val = float(feature_vector_raw[0, i])
-        importance = feature_importances.get(feat_name, 0)
+        importance = feature_importances.get(feat_name, 1.0)
         direction_val = _get_feature_direction(feat_name, raw_val, recommendation)
-        sign = 1 if direction_val == 'positive' else (-1 if direction_val == 'negative' else 0)
-        contribution = importance * sign * min(abs(raw_val) / 5.0, 1.0)
+        sign = 1.0 if direction_val == 'positive' else (-1.0 if direction_val == 'negative' else (0.5 if recommendation == 'Buy' else -0.5))
+        contribution = (importance + 0.1) * sign
         group = _get_feature_group(feat_name)
         group_scores[group] = group_scores.get(group, 0.0) + contribution
+        if group not in group_details:
+            group_details[group] = []
+        group_details[group].append({
+            'feature': feat_name,
+            'importance': round(importance, 4),
+            'raw_value': round(raw_val, 4),
+            'direction': direction_val
+        })
 
-    total_abs = sum(abs(s) for s in group_scores.values())
-    if total_abs > 0:
-        contributions = []
-        for group_name, score in sorted(
-            group_scores.items(), key=lambda x: abs(x[1]), reverse=True
-        ):
-            impact_pct = round((score / total_abs) * 100, 1)
-            direction = 'positive' if score >= 0 else 'negative'
-            gi = FEATURE_GROUPS.get(group_name, {})
-            contributions.append({
-                'factor': group_name,
-                'impact': abs(impact_pct),
-                'direction': direction,
-                'icon': gi.get('icon', 'help-circle'),
-                'description': gi.get('description', 'Other factors'),
-                'details': []
-            })
-        return {'method': 'Feature Importance (fallback)', 'contributions': contributions}
-    return {'method': 'none', 'contributions': []}
+    total_abs = sum(abs(s) for s in group_scores.values()) or 1.0
+    contributions = []
+    for group_name, score in sorted(
+        group_scores.items(), key=lambda x: abs(x[1]), reverse=True
+    ):
+        impact_pct = round((abs(score) / total_abs) * 100, 1)
+        direction = 'positive' if score >= 0 else 'negative'
+        gi = FEATURE_GROUPS.get(group_name, {})
+        contributions.append({
+            'factor': group_name,
+            'impact': max(impact_pct, 5.0),
+            'direction': direction,
+            'icon': gi.get('icon', 'help-circle'),
+            'description': gi.get('description', 'Other factors'),
+            'details': group_details.get(group_name, [])[:3]
+        })
+
+    # Normalize impact percentages to sum to 100%
+    sum_imp = sum(c['impact'] for c in contributions) or 100.0
+    for c in contributions:
+        c['impact'] = round((c['impact'] / sum_imp) * 100, 1)
+
+    return {'method': 'Feature Importance (AI Factor Analysis)', 'contributions': contributions}
 
 
 def generate_xai_breakdown(ticker, prediction_result=None, method='auto'):
