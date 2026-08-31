@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="News Alerts Center - ESG Stock Prediction"/>
-    <title>News Alerts - ESG Stock Prediction</title>
+    <meta name="description" content="News Alerts & Sentiment Intelligence - ESG Stock Prediction"/>
+    <title>News Alerts Center - ESG Stock Prediction</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -17,9 +18,354 @@
     </button>
 
     <div class="main-content">
+        <style>
+            :root {
+                --esg-emerald: #00f59b;
+                --esg-cyan: #00d2ff;
+                --esg-rose: #ff3366;
+                --esg-amber: #ffb703;
+                --card-glass: rgba(13, 23, 38, 0.75);
+                --card-glass-hover: rgba(18, 32, 54, 0.85);
+                --border-glass: rgba(255, 255, 255, 0.08);
+                --border-glow: rgba(0, 245, 155, 0.25);
+            }
+
+            /* Hero Banner */
+            .alerts-hero-banner {
+                background: linear-gradient(135deg, rgba(13, 27, 42, 0.85) 0%, rgba(20, 38, 60, 0.65) 100%);
+                border: 1px solid var(--border-glass);
+                border-radius: 20px;
+                padding: 2rem 2.25rem;
+                backdrop-filter: blur(16px);
+                position: relative;
+                overflow: hidden;
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+            }
+
+            .alerts-hero-banner::before {
+                content: '';
+                position: absolute;
+                top: -60px;
+                right: -60px;
+                width: 220px;
+                height: 220px;
+                background: radial-gradient(circle, rgba(0, 245, 155, 0.15) 0%, transparent 70%);
+                pointer-events: none;
+            }
+
+            /* KPI Stat Cards */
+            .alert-kpi-card {
+                background: var(--card-glass);
+                border: 1px solid var(--border-glass);
+                border-radius: 16px;
+                padding: 1.4rem 1.5rem;
+                backdrop-filter: blur(14px);
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                position: relative;
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+                gap: 1.25rem;
+            }
+
+            .alert-kpi-card:hover {
+                transform: translateY(-3px);
+                border-color: rgba(255, 255, 255, 0.18);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+            }
+
+            .alert-kpi-icon {
+                width: 52px;
+                height: 52px;
+                border-radius: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.5rem;
+                flex-shrink: 0;
+            }
+
+            .alert-kpi-icon.total { background: rgba(0, 210, 255, 0.12); color: var(--esg-cyan); border: 1px solid rgba(0, 210, 255, 0.25); }
+            .alert-kpi-icon.bullish { background: rgba(0, 245, 155, 0.12); color: var(--esg-emerald); border: 1px solid rgba(0, 245, 155, 0.25); }
+            .alert-kpi-icon.bearish { background: rgba(255, 51, 102, 0.12); color: var(--esg-rose); border: 1px solid rgba(255, 51, 102, 0.25); }
+            .alert-kpi-icon.unread { background: rgba(255, 183, 3, 0.12); color: var(--esg-amber); border: 1px solid rgba(255, 183, 3, 0.25); }
+
+            /* Modern Filter Toolbar */
+            .alerts-toolbar {
+                background: var(--card-glass);
+                border: 1px solid var(--border-glass);
+                border-radius: 16px;
+                padding: 1rem 1.25rem;
+                backdrop-filter: blur(14px);
+            }
+
+            .filter-pill-btn {
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                color: #94a3b8;
+                font-size: 0.85rem;
+                font-weight: 600;
+                padding: 0.45rem 1rem;
+                border-radius: 30px;
+                transition: all 0.25s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+                cursor: pointer;
+            }
+
+            .filter-pill-btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+                color: #fff;
+                border-color: rgba(255, 255, 255, 0.15);
+            }
+
+            .filter-pill-btn.active {
+                background: linear-gradient(135deg, rgba(0, 245, 155, 0.2) 0%, rgba(0, 210, 255, 0.15) 100%);
+                border-color: var(--esg-emerald);
+                color: #fff;
+                box-shadow: 0 0 16px rgba(0, 245, 155, 0.2);
+            }
+
+            .search-pill-input {
+                background: rgba(10, 18, 30, 0.8);
+                border: 1px solid var(--border-glass);
+                border-radius: 30px;
+                color: #fff;
+                padding: 0.45rem 1.1rem 0.45rem 2.4rem;
+                font-size: 0.85rem;
+                transition: all 0.25s ease;
+            }
+
+            .search-pill-input:focus {
+                background: rgba(15, 28, 48, 0.95);
+                border-color: var(--esg-emerald);
+                box-shadow: 0 0 12px rgba(0, 245, 155, 0.25);
+                color: #fff;
+                outline: none;
+            }
+
+            /* 2-Column Responsive Alert Grid */
+            .alerts-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+                gap: 1.25rem;
+            }
+
+            @media (max-width: 768px) {
+                .alerts-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            /* Sleek Alert Cards */
+            .alert-card-sleek {
+                background: var(--card-glass);
+                border: 1px solid var(--border-glass);
+                border-radius: 18px;
+                padding: 1.35rem 1.45rem;
+                backdrop-filter: blur(16px);
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .alert-card-sleek:hover {
+                transform: translateY(-3px);
+                background: var(--card-glass-hover);
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+            }
+
+            .alert-card-sleek.positive {
+                border-left: 4px solid var(--esg-emerald);
+            }
+            .alert-card-sleek.positive:hover {
+                border-color: rgba(0, 245, 155, 0.35);
+            }
+
+            .alert-card-sleek.negative {
+                border-left: 4px solid var(--esg-rose);
+            }
+            .alert-card-sleek.negative:hover {
+                border-color: rgba(255, 51, 102, 0.35);
+            }
+
+            .alert-card-sleek.neutral {
+                border-left: 4px solid var(--esg-cyan);
+            }
+            .alert-card-sleek.neutral:hover {
+                border-color: rgba(0, 210, 255, 0.35);
+            }
+
+            .alert-card-sleek.unread {
+                background: linear-gradient(135deg, rgba(20, 36, 58, 0.85) 0%, rgba(13, 23, 38, 0.8) 100%);
+            }
+
+            /* Ticker Chip */
+            .ticker-chip {
+                font-size: 0.95rem;
+                font-weight: 800;
+                padding: 0.35rem 0.85rem;
+                border-radius: 10px;
+                background: rgba(255, 255, 255, 0.07);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: #fff;
+                letter-spacing: 0.5px;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.45rem;
+            }
+
+            .ticker-market-badge {
+                font-size: 0.65rem;
+                font-weight: 700;
+                padding: 0.15rem 0.4rem;
+                border-radius: 6px;
+                background: rgba(0, 210, 255, 0.15);
+                color: var(--esg-cyan);
+                text-transform: uppercase;
+            }
+
+            /* Sentiment Badges */
+            .sentiment-badge-pro {
+                font-size: 0.72rem;
+                font-weight: 800;
+                padding: 0.3rem 0.75rem;
+                border-radius: 20px;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+            }
+
+            .sentiment-badge-pro.positive {
+                background: rgba(0, 245, 155, 0.15);
+                color: var(--esg-emerald);
+                border: 1px solid rgba(0, 245, 155, 0.3);
+            }
+
+            .sentiment-badge-pro.negative {
+                background: rgba(255, 51, 102, 0.15);
+                color: var(--esg-rose);
+                border: 1px solid rgba(255, 51, 102, 0.3);
+            }
+
+            .sentiment-badge-pro.neutral {
+                background: rgba(0, 210, 255, 0.15);
+                color: var(--esg-cyan);
+                border: 1px solid rgba(0, 210, 255, 0.3);
+            }
+
+            /* Headline Box */
+            .headline-container {
+                background: rgba(8, 15, 26, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+                padding: 0.9rem 1rem;
+                margin: 0.85rem 0;
+                transition: all 0.2s ease;
+            }
+
+            .headline-container:hover {
+                border-color: rgba(255, 255, 255, 0.12);
+                background: rgba(12, 22, 38, 0.75);
+            }
+
+            .headline-link-pro {
+                color: #f1f5f9;
+                text-decoration: none;
+                font-size: 0.93rem;
+                font-weight: 500;
+                line-height: 1.45;
+                display: block;
+                transition: color 0.2s ease;
+            }
+
+            .headline-link-pro:hover {
+                color: var(--esg-emerald);
+            }
+
+            /* Action Buttons */
+            .btn-predict-trigger {
+                background: linear-gradient(135deg, rgba(0, 245, 155, 0.15) 0%, rgba(0, 210, 255, 0.15) 100%);
+                border: 1px solid rgba(0, 245, 155, 0.35);
+                color: var(--esg-emerald);
+                font-size: 0.82rem;
+                font-weight: 700;
+                padding: 0.4rem 0.9rem;
+                border-radius: 10px;
+                transition: all 0.25s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+                cursor: pointer;
+            }
+
+            .btn-predict-trigger:hover {
+                background: linear-gradient(135deg, #00f59b 0%, #00d2ff 100%);
+                color: #0d1b2a;
+                border-color: transparent;
+                box-shadow: 0 4px 16px rgba(0, 245, 155, 0.35);
+                transform: translateY(-1px);
+            }
+
+            .btn-story-link {
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                color: #94a3b8;
+                font-size: 0.82rem;
+                font-weight: 600;
+                padding: 0.4rem 0.8rem;
+                border-radius: 10px;
+                text-decoration: none;
+                transition: all 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+            }
+
+            .btn-story-link:hover {
+                background: rgba(255, 255, 255, 0.1);
+                color: #fff;
+            }
+
+            /* Pulse Beacon */
+            .pulse-beacon {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: var(--esg-emerald);
+                display: inline-block;
+                box-shadow: 0 0 0 rgba(0, 245, 155, 0.4);
+                animation: pulseGlow 1.8s infinite;
+            }
+
+            @keyframes pulseGlow {
+                0% { box-shadow: 0 0 0 0 rgba(0, 245, 155, 0.7); }
+                70% { box-shadow: 0 0 0 8px rgba(0, 245, 155, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(0, 245, 155, 0); }
+            }
+
+            /* Toast Container */
+            #toastContainer {
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                z-index: 10050;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+        </style>
+
+        <!-- Top Navigation Bar -->
         <nav class="top-navbar">
             <h1 class="page-title">
-                <i class="bi bi-bell-fill text-warning"></i> News Alerts Center
+                <i class="bi bi-bell-fill text-warning me-2"></i> News Alerts &amp; Sentinels
             </h1>
             <div class="top-navbar-right">
                 <div class="navbar-ticker-wrap">
@@ -32,336 +378,581 @@
             </div>
         </nav>
 
-        <!-- Executive Alerts Header Banner -->
-        <div class="executive-hero-banner fade-in mb-4">
+        <!-- Executive Alerts Hero Banner -->
+        <div class="alerts-hero-banner mb-4 fade-in">
             <div class="row align-items-center g-3">
                 <div class="col-lg-8">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1">
-                            <i class="bi bi-broadcast me-1"></i> Live Media Stream
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 d-inline-flex align-items-center gap-1.5">
+                            <span class="pulse-beacon"></span> LIVE SENTINEL STREAM
                         </span>
                         <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1">
-                            <i class="bi bi-chat-square-quote me-1"></i> FinBERT Sentiment NLP
+                            <i class="bi bi-cpu me-1"></i> NLP Polarity &amp; ESG Classifier
                         </span>
                     </div>
-                    <h3 class="text-white fw-bold mb-2">ESG &amp; Financial News Intelligence</h3>
-                    <p class="text-secondary small mb-0">Real-time global news monitoring with automated FinBERT sentiment classification, ESG impact tagging, and customizable alert rules.</p>
+                    <h2 class="text-white fw-bold mb-2">Real-Time News Intelligence Center</h2>
+                    <p class="text-secondary small mb-0" style="max-width: 680px; line-height: 1.55;">
+                        Continuous multi-source surveillance across US &amp; Indian equities. Every breaking article is parsed for ESG sustainability sentiment, market impact vectors, and instant AI forecasting.
+                    </p>
                 </div>
-                <div class="col-lg-4 text-lg-end text-center">
-                    <button class="btn btn-esg px-4 py-2" onclick="refreshAlerts()">
-                        <i class="bi bi-arrow-clockwise me-1"></i> Sync Live News
+                <div class="col-lg-4 text-lg-end text-start">
+                    <button class="btn btn-esg px-4 py-2.5 fw-bold shadow-lg" id="syncLiveNewsBtn" onclick="syncLiveAlerts()">
+                        <i class="bi bi-arrow-clockwise me-1.5" id="syncSpinner"></i> Sync Live News Data
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Stats Row -->
+        <!-- Metric KPI Cards Row -->
         <div class="row g-3 mb-4">
-            <div class="col-md-3 col-6">
-                <div class="stat-box-clean fade-in">
-                    <div class="stat-value text-esg fw-bold h3 mb-1 counter-val" id="totalAlerts">--</div>
-                    <div class="text-muted small fw-semibold">Total Scanned Alerts</div>
+            <div class="col-lg-3 col-sm-6">
+                <div class="alert-kpi-card fade-in">
+                    <div class="alert-kpi-icon total"><i class="bi bi-radar"></i></div>
+                    <div>
+                        <div class="text-white fw-bold h3 mb-0" id="totalAlerts">{{ initial_alerts|length if initial_alerts else 0 }}</div>
+                        <div class="text-muted small fw-semibold">Scanned Signals</div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
-                <div class="stat-box-clean fade-in">
-                    <div class="stat-value text-success fw-bold h3 mb-1 counter-val" id="positiveAlerts">--</div>
-                    <div class="text-muted small fw-semibold">Bullish Sentiment</div>
+            <div class="col-lg-3 col-sm-6">
+                <div class="alert-kpi-card fade-in">
+                    <div class="alert-kpi-icon bullish"><i class="bi bi-graph-up-arrow"></i></div>
+                    <div>
+                        <div class="text-success fw-bold h3 mb-0" id="positiveAlerts">0</div>
+                        <div class="text-muted small fw-semibold">Bullish Sentiment</div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
-                <div class="stat-box-clean fade-in">
-                    <div class="stat-value text-danger fw-bold h3 mb-1 counter-val" id="negativeAlerts">--</div>
-                    <div class="text-muted small fw-semibold">Bearish Sentiment</div>
+            <div class="col-lg-3 col-sm-6">
+                <div class="alert-kpi-card fade-in">
+                    <div class="alert-kpi-icon bearish"><i class="bi bi-graph-down-arrow"></i></div>
+                    <div>
+                        <div class="text-danger fw-bold h3 mb-0" id="negativeAlerts">0</div>
+                        <div class="text-muted small fw-semibold">Bearish Sentiment</div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
-                <div class="stat-box-clean fade-in">
-                    <div class="stat-value text-info fw-bold h3 mb-1 counter-val" id="neutralAlerts">--</div>
-                    <div class="text-muted small fw-semibold">Neutral / ESG Feed</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Controls -->
-        <div class="card glass-card mb-4 fade-in">
-            <div class="card glass-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <div class="d-flex align-items-center gap-2">
-                    <button class="alert-filter-btn active" data-filter="all" onclick="filterAlerts('all')">
-                        <i class="bi bi-list-ul"></i> All
-                    </button>
-                    <button class="alert-filter-btn" data-filter="positive" onclick="filterAlerts('positive')">
-                        <i class="bi bi-hand-thumbs-up-fill text-success"></i> Positive
-                    </button>
-                    <button class="alert-filter-btn" data-filter="negative" onclick="filterAlerts('negative')">
-                        <i class="bi bi-hand-thumbs-down-fill text-danger"></i> Negative
-                    </button>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted small" id="alertCountDisplay">0 alerts</span>
-                    <button class="btn-esg btn-sm" onclick="markAllAlertsRead()">
-                        <i class="bi bi-check2-all"></i> Mark All Read
-                    </button>
-                    <button class="btn-outline-esg btn-sm" onclick="refreshAlerts()">
-                        <i class="bi bi-arrow-clockwise"></i> Refresh
-                    </button>
+            <div class="col-lg-3 col-sm-6">
+                <div class="alert-kpi-card fade-in">
+                    <div class="alert-kpi-icon unread"><i class="bi bi-bell-fill"></i></div>
+                    <div>
+                        <div class="text-warning fw-bold h3 mb-0" id="unreadAlerts">{{ unread_count if unread_count is defined else 0 }}</div>
+                        <div class="text-muted small fw-semibold">Unread Notifications</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Alerts List -->
+        <!-- Filter & Search Toolbar -->
+        <div class="alerts-toolbar mb-4 fade-in">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <button class="filter-pill-btn active" data-filter="all" onclick="filterAlerts('all')">
+                        <i class="bi bi-grid-fill"></i> All Alerts
+                    </button>
+                    <button class="filter-pill-btn" data-filter="positive" onclick="filterAlerts('positive')">
+                        <i class="bi bi-graph-up text-success"></i> Bullish
+                    </button>
+                    <button class="filter-pill-btn" data-filter="negative" onclick="filterAlerts('negative')">
+                        <i class="bi bi-graph-down text-danger"></i> Bearish
+                    </button>
+                    <button class="filter-pill-btn" data-filter="unread" onclick="filterAlerts('unread')">
+                        <i class="bi bi-envelope-open text-warning"></i> Unread
+                    </button>
+                </div>
+                <div class="d-flex align-items-center gap-3 flex-grow-1 flex-md-grow-0">
+                    <div class="position-relative w-100" style="min-width: 250px;">
+                        <i class="bi bi-search position-absolute text-muted" style="left: 14px; top: 9px; font-size: 0.85rem;"></i>
+                        <input type="text" id="alertSearchInput" class="form-control search-pill-input w-100" placeholder="Filter by ticker or keyword..." oninput="onSearchAlerts(this.value)">
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm px-3 rounded-pill text-nowrap" onclick="markAllAlertsRead()">
+                        <i class="bi bi-check2-all me-1"></i> Mark All Read
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Stream Grid -->
         <div id="alertsContainer">
             <div class="text-center py-5">
                 <div class="spinner-border text-esg" role="status"></div>
-                <p class="text-muted mt-3">Loading alerts...</p>
+                <p class="text-muted mt-3">Loading real-time news sentinels...</p>
             </div>
         </div>
 
-        <!-- Load More -->
-        <div class="text-center mt-4" id="loadMoreWrap" style="display:none;">
-            <button class="btn-outline-esg" onclick="loadMoreAlerts()">
-                <i class="bi bi-plus-circle"></i> Load More
+        <!-- Pagination / Load More -->
+        <div class="text-center mt-4 mb-4" id="loadMoreWrap" style="display:none;">
+            <button class="btn btn-outline-light rounded-pill px-4 py-2" onclick="loadMoreAlerts()">
+                <i class="bi bi-plus-circle me-1.5 text-esg"></i> Load More Alerts
             </button>
         </div>
 
-        <div class="text-center py-4 mt-4">
+        <!-- Footer -->
+        <div class="text-center py-4 mt-5 border-top border-secondary border-opacity-10">
             <p class="text-muted small mb-0">
-                <i class="bi bi-cpu me-1"></i> ESG Stock Prediction System &copy; 2024
-                <span class="mx-2">|</span>
-                <i class="bi bi-newspaper me-1"></i> News alerts powered by NewsAPI &amp; Finnhub
+                <i class="bi bi-cpu me-1 text-esg"></i> ESG AI Real-Time Quant Platform
+                <span class="mx-2 text-secondary">•</span>
+                <i class="bi bi-broadcast me-1 text-info"></i> NewsAPI &amp; Yahoo Finance Live Multi-Tier Ingestion
             </p>
         </div>
 
+        <!-- Interactive AI Quick Prediction Modal (INSIDE main-content for SPA support) -->
+        <div class="modal fade" id="alertPredictionModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content" style="background: rgba(11, 20, 34, 0.96); border: 1px solid rgba(0, 245, 155, 0.3); border-radius: 20px; backdrop-filter: blur(24px); box-shadow: 0 20px 60px rgba(0,0,0,0.7);">
+                    <div class="modal-header border-0 pb-0 pt-4 px-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="ticker-chip" id="modalTickerChip">
+                                <i class="bi bi-lightning-charge-fill text-warning"></i>
+                                <span id="modalTickerSymbol">AAPL</span>
+                            </div>
+                            <span class="badge bg-secondary-subtle text-secondary px-2.5 py-1" id="modalMarketName">US Equity</span>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4" id="modalPredictionBody">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-esg" role="status"></div>
+                            <p class="text-muted mt-3">Computing quantitative forecast &amp; ESG indicators...</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top border-secondary border-opacity-10 px-4 py-3 justify-content-between">
+                        <span class="text-muted small"><i class="bi bi-shield-check text-esg me-1"></i> Multi-factor Model</span>
+                        <a href="#" id="modalFullPredictBtn" class="btn btn-esg px-4 py-2">
+                            <i class="bi bi-cpu me-1"></i> Open Full Prediction Workspace
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inline Scripts (INSIDE main-content for SPA router support) -->
         <script>
-    var _allAlerts = [];
-    var _displayedAlerts = [];
-    var _currentFilter = 'all';
-    var _alertPage = 0;
-    var _alertLimit = 20;
+        (function() {
+            var _allAlerts = {{ initial_alerts | tojson | safe if initial_alerts is defined and initial_alerts else '[]' }};
+            var _displayedAlerts = [];
+            var _currentFilter = 'all';
+            var _searchQuery = '';
+            var _alertPage = 0;
+            var _alertLimit = 12;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        refreshAlerts();
-    });
+            function isAlertPositive(a) {
+                var pol = parseFloat(a.avg_polarity || 0);
+                return a.alert_type === 'positive' || a.sentiment_label === 'Positive' || pol > 0.05;
+            }
 
-    function refreshAlerts() {
-        _alertPage = 0;
-        document.getElementById('alertsContainer').innerHTML =
-            '<div class="text-center py-5"><div class="spinner-border text-esg" role="status"></div><p class="text-muted mt-3">Loading alerts...</p></div>';
-        fetch('/api/news/alerts/history?limit=999')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                _allAlerts = data.alerts || [];
-                updateStats();
+            function isAlertNegative(a) {
+                var pol = parseFloat(a.avg_polarity || 0);
+                return a.alert_type === 'negative' || a.sentiment_label === 'Negative' || pol < -0.05;
+            }
+
+            function updateStats() {
+                var total = _allAlerts.length;
+                var positive = _allAlerts.filter(function(a) { return isAlertPositive(a); }).length;
+                var negative = _allAlerts.filter(function(a) { return isAlertNegative(a); }).length;
+                var unread = _allAlerts.filter(function(a) { return !a.is_read; }).length;
+
+                var elTotal = document.getElementById('totalAlerts');
+                var elPos = document.getElementById('positiveAlerts');
+                var elNeg = document.getElementById('negativeAlerts');
+                var elUnread = document.getElementById('unreadAlerts');
+
+                if (elTotal) elTotal.textContent = total;
+                if (elPos) elPos.textContent = positive;
+                if (elNeg) elNeg.textContent = negative;
+                if (elUnread) elUnread.textContent = unread;
+            }
+
+            window.filterAlerts = function(filter) {
+                _currentFilter = filter;
+                _alertPage = 0;
+                document.querySelectorAll('.filter-pill-btn').forEach(function(btn) {
+                    btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+                });
                 renderAlerts();
-            })
-            .catch(function() {
-                document.getElementById('alertsContainer').innerHTML =
-                    '<div class="text-center py-5 text-muted"><i class="bi bi-exclamation-triangle fs-1 d-block mb-3"></i>Failed to load alerts</div>';
-            });
-    }
+            };
 
-    function isAlertPositive(a) {
-        return a.alert_type === 'positive' || a.sentiment_label === 'Positive';
-    }
+            window.onSearchAlerts = function(val) {
+                _searchQuery = (val || '').trim().toLowerCase();
+                _alertPage = 0;
+                renderAlerts();
+            };
 
-    function updateStats() {
-        var total = _allAlerts.length;
-        var positive = _allAlerts.filter(function(a) { return isAlertPositive(a); }).length;
-        var negative = _allAlerts.filter(function(a) { return !isAlertPositive(a) && (a.alert_type === 'negative' || a.sentiment_label === 'Negative'); }).length;
-        var unread = _allAlerts.filter(function(a) { return !a.is_read; }).length;
-        document.getElementById('totalAlerts').textContent = total;
-        document.getElementById('positiveAlerts').textContent = positive;
-        document.getElementById('negativeAlerts').textContent = negative;
-        document.getElementById('unreadAlerts').textContent = unread;
-    }
+            window.loadMoreAlerts = function() {
+                _alertPage++;
+                renderAlerts();
+            };
 
-    function isAlertNegative(a) {
-        return a.alert_type === 'negative' || a.sentiment_label === 'Negative';
-    }
-
-    function filterAlerts(filter) {
-        _currentFilter = filter;
-        _alertPage = 0;
-        document.querySelectorAll('.alert-filter-btn').forEach(function(btn) {
-            btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
-        });
-        renderAlerts();
-    }
-
-    function renderAlerts() {
-        var filtered = _allAlerts;
-        if (_currentFilter === 'positive') {
-            filtered = _allAlerts.filter(function(a) { return isAlertPositive(a); });
-        } else if (_currentFilter === 'negative') {
-            filtered = _allAlerts.filter(function(a) { return isAlertNegative(a); });
-        }
-        _displayedAlerts = filtered;
-
-        document.getElementById('alertCountDisplay').textContent = filtered.length + ' alerts';
-
-        if (filtered.length === 0) {
-            document.getElementById('alertsContainer').innerHTML =
-                '<div class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-3"></i>No alerts found</div>' +
-                '<div class="text-center"><a href="/dashboard" class="btn-esg btn-sm"><i class="bi bi-star me-1"></i> Watch Stocks</a></div>';
-            document.getElementById('loadMoreWrap').style.display = 'none';
-            return;
-        }
-
-        var page = _alertPage;
-        var limit = _alertLimit;
-        var pageAlerts = filtered.slice(0, (page + 1) * limit);
-        var hasMore = pageAlerts.length < filtered.length;
-
-        var html = '<div class="alerts-list">';
-        pageAlerts.forEach(function(a) {
-            var isPositive = isAlertPositive(a);
-            var icon = isPositive ? 'bi-emoji-sunglasses' : 'bi-emoji-frown';
-            var color = isPositive ? '#4caf50' : '#f44336';
-            var bgClass = isPositive ? 'alert-card-positive' : 'alert-card-negative';
-            var polarityVal = (a.avg_polarity || 0);
-            var polarityPct = Math.min(Math.abs(polarityVal) * 100, 100);
-            var polarityColor = polarityVal > 0 ? '#4caf50' : '#f44336';
-            var dateStr = a.created_at || '';
-            var timeAgo = dateStr ? timeSince(dateStr) : '';
-            var ticker = a.ticker || 'N/A';
-            var headlines = (typeof a.headlines === 'string') ? a.headlines : (a.headline_text || '');
-
-            html += '<div class="alert-card ' + bgClass + ' fade-in" data-type="' + a.alert_type + '">' +
-                '<div class="alert-card-left">' +
-                    '<div class="alert-sentiment-icon" style="background:' + color + '20;color:' + color + ';">' +
-                        '<i class="bi ' + icon + '"></i>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="alert-card-body">' +
-                    '<div class="alert-card-header">' +
-                        '<span class="alert-ticker-badge" style="border-left:3px solid ' + color + ';">' +
-                            '<i class="bi bi-graph-up-arrow me-1"></i>' + escapeHtml(ticker) +
-                        '</span>' +
-                        '<span class="alert-sentiment-pill" style="background:' + color + '20;color:' + color + ';">' +
-                            (isPositive ? 'Positive' : 'Negative') +
-                        '</span>' +
-                        '<span class="alert-time">' + timeAgo + '</span>' +
-                    '</div>' +
-                    '<div class="alert-card-body-inner">' +
-                        '<div class="alert-polarity-row">' +
-                            '<span class="text-muted small">Polarity:</span>' +
-                            '<div class="alert-polarity-bar-wrap">' +
-                                '<div class="alert-polarity-bar" style="width:' + polarityPct + '%;background:' + polarityColor + ';"></div>' +
-                            '</div>' +
-                            '<span class="alert-polarity-value" style="color:' + polarityColor + ';">' + polarityVal.toFixed(3) + '</span>' +
-                        '</div>' +
-                        '<div class="alert-article-count"><i class="bi bi-newspaper me-1"></i>' + (a.article_count || 0) + ' articles analyzed</div>' +
-                    '</div>' +
-                    (headlines ? '<div class="alert-headline-text"><i class="bi bi-chat-quote me-1 text-muted"></i>' + escapeHtml(headlines) + '</div>' : '') +
-                    '<div class="alert-card-actions">' +
-                        '<a href="/predict?ticker=' + ticker + '" class="alert-action-link" onclick="return navigateSPA(event, this.href)">' +
-                            '<i class="bi bi-graph-up-arrow"></i> View Analysis' +
-                        '</a>' +
-                        '<span class="text-muted small">' + dateStr + '</span>' +
-                    '</div>' +
-                '</div>' +
-            '</div>';
-        });
-        html += '</div>';
-
-        document.getElementById('alertsContainer').innerHTML = html;
-        document.getElementById('loadMoreWrap').style.display = hasMore ? 'block' : 'none';
-
-        // Stagger animation
-        document.querySelectorAll('.alert-card.fade-in').forEach(function(el, i) {
-            setTimeout(function() {
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(15px)';
-                el.style.transition = 'all 0.4s ease';
-                setTimeout(function() {
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                }, 50);
-            }, i * 60);
-        });
-    }
-
-    function loadMoreAlerts() {
-        _alertPage++;
-        renderAlerts();
-    }
-
-    function markAllAlertsRead() {
-        fetch('/api/news/alerts/mark-read', { method: 'POST' })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                _allAlerts.forEach(function(a) { a.is_read = 1; });
-                updateStats();
-                showToast('All alerts marked as read', 'success');
-                // Update navbar badge
-                var badge = document.getElementById('notificationBadge');
-                if (badge) {
-                    badge.style.display = 'none';
-                    badge.textContent = '0';
+            function renderAlerts() {
+                var filtered = _allAlerts;
+                
+                if (_currentFilter === 'positive') {
+                    filtered = filtered.filter(function(a) { return isAlertPositive(a); });
+                } else if (_currentFilter === 'negative') {
+                    filtered = filtered.filter(function(a) { return isAlertNegative(a); });
+                } else if (_currentFilter === 'unread') {
+                    filtered = filtered.filter(function(a) { return !a.is_read; });
                 }
-            })
-            .catch(function() {
-                showToast('Failed to mark alerts as read', 'error');
-            });
-    }
 
-    function timeSince(dateStr) {
-        if (!dateStr) return '';
-        var date = new Date(dateStr);
-        var now = new Date();
-        var seconds = Math.floor((now - date) / 1000);
-        if (isNaN(seconds)) return dateStr;
-        if (seconds < 60) return seconds + 's ago';
-        var minutes = Math.floor(seconds / 60);
-        if (minutes < 60) return minutes + 'm ago';
-        var hours = Math.floor(minutes / 60);
-        if (hours < 24) return hours + 'h ago';
-        var days = Math.floor(hours / 24);
-        if (days < 7) return days + 'd ago';
-        return date.toLocaleDateString();
-    }
+                if (_searchQuery) {
+                    filtered = filtered.filter(function(a) {
+                        var tkr = (a.ticker || '').toLowerCase();
+                        var text = (a.headline_text || (typeof a.headlines === 'string' ? a.headlines : '') || '').toLowerCase();
+                        var label = (a.sentiment_label || '').toLowerCase();
+                        return tkr.indexOf(_searchQuery) >= 0 || text.indexOf(_searchQuery) >= 0 || label.indexOf(_searchQuery) >= 0;
+                    });
+                }
 
-    function navigateSPA(event, href) {
-        if (window.navigateTo) {
-            event.preventDefault();
-            window.navigateTo(href);
-            return false;
-        }
-        return true;
-    }
+                _displayedAlerts = filtered;
 
-    function escapeHtml(text) {
-        var d = document.createElement('div');
-        d.textContent = text;
-        return d.innerHTML;
-    }
+                var container = document.getElementById('alertsContainer');
+                if (!container) return;
 
-    function showToast(message, type) {
-        type = type || 'info';
-        var container = document.getElementById('toastContainer');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'toastContainer';
-            document.body.appendChild(container);
-        }
-        var icons = { success: 'bi-check-circle-fill', error: 'bi-x-circle-fill', warning: 'bi-exclamation-triangle-fill', info: 'bi-info-circle-fill' };
-        var icon = icons[type] || icons.info;
-        var toast = document.createElement('div');
-        toast.className = 'toast-custom ' + type;
-        toast.innerHTML = '<i class="bi ' + icon + '"></i> ' + escapeHtml(message);
-        container.appendChild(toast);
-        setTimeout(function() {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(100%)';
-            toast.style.transition = 'all 0.3s ease';
-            setTimeout(function() { toast.remove(); }, 300);
-        }, 3500);
-    }
-    </script>
+                if (filtered.length === 0) {
+                    container.innerHTML =
+                        '<div class="alerts-toolbar text-center py-5 text-muted">' +
+                            '<i class="bi bi-bell-slash fs-1 d-block mb-3 text-secondary"></i>' +
+                            '<h5 class="text-white fw-bold">No news sentinels found</h5>' +
+                            '<p class="small text-secondary mb-3">No alerts matching your current filter criteria.</p>' +
+                            '<button class="btn btn-sm btn-esg px-4 py-2" onclick="syncLiveAlerts()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh Live Intelligence</button>' +
+                        '</div>';
+                    var lm = document.getElementById('loadMoreWrap');
+                    if (lm) lm.style.display = 'none';
+                    return;
+                }
+
+                var limit = (_alertPage + 1) * _alertLimit;
+                var pageAlerts = filtered.slice(0, limit);
+                var hasMore = pageAlerts.length < filtered.length;
+
+                var html = '<div class="alerts-grid">';
+                pageAlerts.forEach(function(a) {
+                    var isPos = isAlertPositive(a);
+                    var isNeg = isAlertNegative(a);
+                    var cardClass = isPos ? 'positive' : (isNeg ? 'negative' : 'neutral');
+                    var pillLabel = isPos ? 'Bullish' : (isNeg ? 'Bearish' : 'Neutral');
+                    var pillIcon = isPos ? 'arrow-up-right' : (isNeg ? 'arrow-down-right' : 'dash');
+                    var pol = parseFloat(a.avg_polarity || 0);
+                    var polPct = Math.min(Math.round(Math.abs(pol) * 100), 100);
+                    var polColor = isPos ? '#00f59b' : (isNeg ? '#ff3366' : '#00d2ff');
+                    var timeAgo = a.created_at ? timeSince(a.created_at) : 'Just now';
+                    var headline = a.headline_text || (typeof a.headlines === 'string' ? a.headlines : '') || (a.ticker + ' market sentiment update & ESG evaluation');
+                    var articleUrl = a.url || '';
+                    var isUnread = !a.is_read;
+                    var isIndian = a.ticker.indexOf('.NS') >= 0 || ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'WIPRO', 'TATAMOTORS', 'SBIN', 'BHARTIARTL', 'ITC', 'LT'].indexOf(a.ticker) >= 0;
+                    var marketLabel = isIndian ? 'NSE' : 'US';
+
+                    html += '<div class="alert-card-sleek ' + cardClass + (isUnread ? ' unread' : '') + ' fade-in" id="alert-card-' + a.id + '">' +
+                        '<div>' +
+                            '<div class="d-flex align-items-center justify-content-between gap-2 mb-2">' +
+                                '<div class="d-flex align-items-center gap-2">' +
+                                    '<span class="ticker-chip">' +
+                                        '<i class="bi bi-graph-up-arrow text-info"></i>' + escapeHtml(a.ticker) +
+                                        '<span class="ticker-market-badge">' + marketLabel + '</span>' +
+                                    '</span>' +
+                                    '<span class="sentiment-badge-pro ' + cardClass + '">' +
+                                        '<i class="bi bi-' + pillIcon + '"></i>' + pillLabel +
+                                    '</span>' +
+                                    (isUnread ? '<span class="badge bg-warning text-dark px-2 py-0.5 rounded-pill small fw-bold">New</span>' : '') +
+                                '</div>' +
+                                '<div class="d-flex align-items-center gap-2 text-muted small">' +
+                                    '<span><i class="bi bi-clock me-1"></i>' + timeAgo + '</span>' +
+                                    '<div class="dropdown">' +
+                                        '<button class="btn btn-sm btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">' +
+                                            '<i class="bi bi-three-dots-vertical"></i>' +
+                                        '</button>' +
+                                        '<ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">' +
+                                            '<li><a class="dropdown-item" href="javascript:void(0)" onclick="markSingleRead(' + a.id + ')"><i class="bi bi-check2 me-2 text-success"></i>Mark Read</a></li>' +
+                                            '<li><a class="dropdown-item text-danger" href="javascript:void(0)" onclick="dismissAlert(' + a.id + ')"><i class="bi bi-trash3 me-2"></i>Dismiss</a></li>' +
+                                        '</ul>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>' +
+
+                            '<div class="headline-container">' +
+                                '<a href="' + (articleUrl ? escapeHtml(articleUrl) : '/predict?ticker=' + encodeURIComponent(a.ticker)) + '" ' + (articleUrl ? 'target="_blank" rel="noopener noreferrer"' : '') + ' class="headline-link-pro">' +
+                                    escapeHtml(headline) +
+                                    (articleUrl ? ' <i class="bi bi-box-arrow-up-right small text-muted ms-1"></i>' : '') +
+                                '</a>' +
+                            '</div>' +
+                        '</div>' +
+
+                        '<div>' +
+                            '<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top border-secondary border-opacity-10">' +
+                                '<div class="d-flex align-items-center gap-3 text-muted small">' +
+                                    '<div>Polarity: <span class="fw-bold" style="color:' + polColor + ';">' + (pol >= 0 ? '+' : '') + pol.toFixed(3) + '</span></div>' +
+                                    '<div class="polarity-bar-bg" style="height:6px;width:70px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;display:inline-block;"><div style="height:100%;width:' + polPct + '%;background:' + polColor + ';border-radius:3px;"></div></div>' +
+                                    '<div><i class="bi bi-file-earmark-text me-1"></i>' + (a.article_count || 1) + ' sources</div>' +
+                                '</div>' +
+                                '<div class="d-flex align-items-center gap-2">' +
+                                    '<button type="button" class="btn-predict-trigger" onclick="openPredictionModal(\'' + escapeHtml(a.ticker) + '\')">' +
+                                        '<i class="bi bi-cpu"></i> View AI Prediction' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+                });
+                html += '</div>';
+
+                container.innerHTML = html;
+                var lmWrap = document.getElementById('loadMoreWrap');
+                if (lmWrap) lmWrap.style.display = hasMore ? 'block' : 'none';
+            }
+
+            window.loadAlerts = function() {
+                _alertPage = 0;
+                fetch('/api/news/alerts/history?limit=100')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        _allAlerts = data.alerts || [];
+                        updateStats();
+                        renderAlerts();
+                    })
+                    .catch(function(err) {
+                        var c = document.getElementById('alertsContainer');
+                        if (c) {
+                            c.innerHTML =
+                                '<div class="text-center py-5 text-muted"><i class="bi bi-exclamation-triangle fs-1 d-block mb-3 text-warning"></i>Failed to load alerts.<br><button class="btn btn-sm btn-esg mt-3" onclick="syncLiveAlerts()"><i class="bi bi-arrow-clockwise me-1"></i> Sync Live Data Now</button></div>';
+                        }
+                    });
+            };
+
+            window.syncLiveAlerts = function() {
+                var btn = document.getElementById('syncLiveNewsBtn');
+                var spinner = document.getElementById('syncSpinner');
+                if (btn) btn.disabled = true;
+                if (spinner) spinner.className = 'spinner-border spinner-border-sm me-1.5';
+
+                showToast('Scanning live multi-source news streams (NewsAPI & Yahoo Finance)...', 'info');
+
+                fetch('/api/news/alerts/scan', { method: 'POST' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        _allAlerts = data.alerts || [];
+                        updateStats();
+                        renderAlerts();
+                        showToast('News intelligence synchronized! Updated ' + _allAlerts.length + ' sentinels.', 'success');
+                    })
+                    .catch(function(err) {
+                        showToast('Sync encountered an issue: ' + err.message, 'error');
+                    })
+                    .finally(function() {
+                        if (btn) btn.disabled = false;
+                        if (spinner) spinner.className = 'bi bi-arrow-clockwise me-1.5';
+                    });
+            };
+
+            window.openPredictionModal = function(ticker) {
+                var modalEl = document.getElementById('alertPredictionModal');
+                if (!modalEl) return;
+                var bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                
+                var symEl = document.getElementById('modalTickerSymbol');
+                if (symEl) symEl.textContent = ticker.toUpperCase();
+                
+                var fullBtn = document.getElementById('modalFullPredictBtn');
+                if (fullBtn) fullBtn.href = '/predict?ticker=' + encodeURIComponent(ticker);
+                
+                var isIndian = ticker.indexOf('.NS') >= 0 || ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'WIPRO', 'TATAMOTORS', 'SBIN', 'BHARTIARTL', 'ITC', 'LT'].indexOf(ticker.toUpperCase()) >= 0;
+                var mktEl = document.getElementById('modalMarketName');
+                if (mktEl) mktEl.textContent = isIndian ? 'NSE (India)' : 'US Equities';
+
+                var body = document.getElementById('modalPredictionBody');
+                if (body) {
+                    body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-esg" role="status"></div><p class="text-muted mt-3">Synthesizing live predictions for ' + escapeHtml(ticker) + '...</p></div>';
+                }
+
+                bsModal.show();
+
+                fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker: ticker })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!body) return;
+                    if (data.error) {
+                        body.innerHTML = '<div class="text-center py-4 text-warning"><i class="bi bi-exclamation-circle fs-2 d-block mb-2"></i>' + escapeHtml(data.error) + '</div>';
+                        return;
+                    }
+
+                    var isBuy = data.recommendation === 'Buy';
+                    var recColor = isBuy ? 'var(--esg-emerald)' : 'var(--esg-rose)';
+                    var sym = data.currency_symbol || (isIndian ? '₹' : '$');
+                    var changePct = data.price_change_pct || 0;
+                    var isPos = changePct >= 0;
+                    var changeStr = (isPos ? '+' : '') + changePct.toFixed(2) + '%';
+                    var changeClass = isPos ? 'text-success' : 'text-danger';
+
+                    body.innerHTML = '' +
+                        '<div class="row g-4 align-items-center mb-4">' +
+                            '<div class="col-md-6">' +
+                                '<div class="d-flex align-items-baseline gap-3 mb-2">' +
+                                    '<span class="h1 fw-bold text-white mb-0">' + sym + parseFloat(data.current_price || 0).toFixed(2) + '</span>' +
+                                    '<span class="fs-5 fw-bold ' + changeClass + '"><i class="bi bi-' + (isPos ? 'arrow-up' : 'arrow-down') + '"></i> ' + changeStr + '</span>' +
+                                '</div>' +
+                                '<div class="text-secondary small">' + escapeHtml(data.company || ticker) + ' • ' + escapeHtml(data.industry || 'Market') + '</div>' +
+                            '</div>' +
+                            '<div class="col-md-6 text-md-end">' +
+                                '<div class="d-inline-flex flex-column align-items-md-end">' +
+                                    '<span class="badge px-3 py-2 fs-6 fw-bold mb-1" style="background:' + (isBuy ? 'rgba(0,245,155,0.15)' : 'rgba(255,51,102,0.15)') + '; color:' + recColor + '; border:1px solid ' + recColor + ';">' +
+                                        '<i class="bi bi-' + (isBuy ? 'check-circle-fill' : 'exclamation-octagon-fill') + ' me-1.5"></i> AI RECOMMENDATION: ' + (data.recommendation || 'HOLD').toUpperCase() +
+                                    '</span>' +
+                                    '<span class="text-muted small">Algorithmic Conviction: <strong class="text-white">' + (data.confidence || 75).toFixed(1) + '%</strong></span>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+
+                        '<div class="row g-3 mb-4">' +
+                            '<div class="col-6 col-md-3">' +
+                                '<div class="p-3 rounded-3" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);">' +
+                                    '<small class="text-muted d-block mb-1">RSI (14)</small>' +
+                                    '<strong class="fs-5 text-white">' + ((data.indicators && data.indicators.rsi) || 50).toFixed(1) + '</strong>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="col-6 col-md-3">' +
+                                '<div class="p-3 rounded-3" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);">' +
+                                    '<small class="text-muted d-block mb-1">MACD Trend</small>' +
+                                    '<strong class="fs-5 ' + (data.trend === 'Bullish' ? 'text-success' : 'text-danger') + '">' + (data.trend || 'Neutral') + '</strong>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="col-6 col-md-3">' +
+                                '<div class="p-3 rounded-3" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);">' +
+                                    '<small class="text-muted d-block mb-1">ESG Rating</small>' +
+                                    '<strong class="fs-5 text-info">' + ((data.esg_data && data.esg_data.esg_score) || 68).toFixed(1) + '/100</strong>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="col-6 col-md-3">' +
+                                '<div class="p-3 rounded-3" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);">' +
+                                    '<small class="text-muted d-block mb-1">Risk Profile</small>' +
+                                    '<strong class="fs-5 text-warning">' + (data.risk_level || 'Medium') + '</strong>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+
+                        (data.ai_explanation ?
+                            '<div class="p-3 rounded-3" style="background:rgba(0,210,255,0.06); border:1px solid rgba(0,210,255,0.2);">' +
+                                '<div class="small fw-bold text-info mb-1"><i class="bi bi-robot me-1"></i> AI Model Rationale</div>' +
+                                '<p class="small text-white-50 mb-0 leading-relaxed">' + escapeHtml(data.ai_explanation.summary || data.ai_explanation.key_drivers || data.ai_explanation) + '</p>' +
+                            '</div>' : ''
+                        );
+                })
+                .catch(function(err) {
+                    if (body) {
+                        body.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-wifi-off fs-2 d-block mb-2"></i>Failed to load prediction: ' + escapeHtml(err.message) + '</div>';
+                    }
+                });
+            };
+
+            window.markSingleRead = function(alertId) {
+                fetch('/api/news/alerts/' + alertId + '/read', { method: 'POST' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var found = _allAlerts.find(function(a) { return a.id == alertId; });
+                        if (found) found.is_read = 1;
+                        updateStats();
+                        renderAlerts();
+                        showToast('Alert marked as read', 'success');
+                    })
+                    .catch(function() {
+                        showToast('Failed to update alert', 'error');
+                    });
+            };
+
+            window.dismissAlert = function(alertId) {
+                fetch('/api/news/alerts/' + alertId, { method: 'DELETE' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        _allAlerts = _allAlerts.filter(function(a) { return a.id != alertId; });
+                        updateStats();
+                        renderAlerts();
+                        showToast('Alert dismissed', 'info');
+                    })
+                    .catch(function() {
+                        showToast('Failed to delete alert', 'error');
+                    });
+            };
+
+            window.markAllAlertsRead = function() {
+                fetch('/api/news/alerts/mark-read', { method: 'POST' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        _allAlerts.forEach(function(a) { a.is_read = 1; });
+                        updateStats();
+                        renderAlerts();
+                        showToast('All alerts marked as read', 'success');
+                    })
+                    .catch(function() {
+                        showToast('Failed to mark all read', 'error');
+                    });
+            };
+
+            function timeSince(dateStr) {
+                if (!dateStr) return '';
+                var date = new Date(dateStr);
+                var now = new Date();
+                var seconds = Math.floor((now - date) / 1000);
+                if (isNaN(seconds)) return dateStr;
+                if (seconds < 60) return seconds + 's ago';
+                var minutes = Math.floor(seconds / 60);
+                if (minutes < 60) return minutes + 'm ago';
+                var hours = Math.floor(seconds / 60);
+                if (hours < 24) return hours + 'h ago';
+                var days = Math.floor(hours / 24);
+                if (days < 7) return days + 'd ago';
+                return date.toLocaleDateString();
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                var d = document.createElement('div');
+                d.textContent = text;
+                return d.innerHTML;
+            }
+
+            function showToast(message, type) {
+                type = type || 'info';
+                var container = document.getElementById('toastContainer');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'toastContainer';
+                    document.body.appendChild(container);
+                }
+                var toast = document.createElement('div');
+                toast.className = 'toast-custom ' + type;
+                toast.style.cssText = 'padding:14px 20px;border-radius:12px;background:#0d1b2a;border:1px solid rgba(0,245,155,0.3);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,0.6);font-size:0.88rem;display:flex;align-items:center;gap:10px;animation:fadeIn 0.3s ease;';
+                toast.innerHTML = '<i class="bi bi-bell-fill text-esg fs-5"></i><span>' + escapeHtml(message) + '</span>';
+                container.appendChild(toast);
+                setTimeout(function() {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(10px)';
+                    toast.style.transition = 'all 0.3s ease';
+                    setTimeout(function() { toast.remove(); }, 300);
+                }, 4000);
+            }
+
+            function initAlertsPage() {
+                updateStats();
+                if (_allAlerts && _allAlerts.length > 0) {
+                    renderAlerts();
+                } else {
+                    loadAlerts();
+                }
+            }
+
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                setTimeout(initAlertsPage, 20);
+            } else {
+                document.addEventListener('DOMContentLoaded', initAlertsPage);
+            }
+            window.addEventListener('load', initAlertsPage);
+        })();
+        </script>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(r){r.unregister()})}).catch(function(){});</script>
-    <script src="{{ url_for('static', filename='js/main.js')}}?v={{ static_version() }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version() }}"></script>
 </body>
 </html>

@@ -867,30 +867,10 @@ def predict_stock(ticker):
                 indicators['Social_Score'] = esg_data['social_score']
                 indicators['Governance_Score'] = esg_data['governance_score']
 
-                # Fetch macro data
-                try:
-                    macro_tickers = ['^GSPC', '^VIX', '^IRX']
-                    macro_data = yf.download(macro_tickers, period='5d', progress=False)
-                    if 'Close' in macro_data.columns:
-                        macro_close = macro_data['Close']
-                    else:
-                        macro_close = macro_data
-                        
-                    if len(macro_close) > 0:
-                        last_macro = macro_close.iloc[-1]
-                        sp500_ret = macro_close['^GSPC'].pct_change().iloc[-1]
-                        indicators['MACRO_SP500_Return'] = float(sp500_ret) if not pd.isna(sp500_ret) else 0.0
-                        indicators['MACRO_VIX'] = float(last_macro['^VIX']) if not pd.isna(last_macro['^VIX']) else 20.0
-                        indicators['MACRO_IRX'] = float(last_macro['^IRX']) if not pd.isna(last_macro['^IRX']) else 4.0
-                    else:
-                        indicators['MACRO_SP500_Return'] = 0.0
-                        indicators['MACRO_VIX'] = 20.0
-                        indicators['MACRO_IRX'] = 4.0
-                except Exception as e:
-                    print(f"Error fetching macro data: {e}")
-                    indicators['MACRO_SP500_Return'] = 0.0
-                    indicators['MACRO_VIX'] = 20.0
-                    indicators['MACRO_IRX'] = 4.0
+                # Fetch macro data from cache
+                macro_dict = fetch_latest_macro_data()
+                for k, v in macro_dict.items():
+                    indicators[k] = v
 
                 model_features = metadata.get('features', BASE_FEATURES + ['MACRO_SP500_Return', 'MACRO_VIX', 'MACRO_IRX'])
                 

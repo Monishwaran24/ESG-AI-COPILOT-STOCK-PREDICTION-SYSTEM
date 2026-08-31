@@ -22,9 +22,9 @@ try:
 except ImportError:
     HAS_TEXTBLOB = False
 
-# Cache for news results to avoid hitting rate limits
+# Cache for news results to avoid hitting rate limits (fast 60s live TTL)
 _news_cache = {}
-_NEWS_CACHE_TTL = 1800  # 30 minutes
+_NEWS_CACHE_TTL = 60  # 60 seconds for live up-to-the-minute updates
 
 # Company name lookup (kept for reference, though Finnhub uses ticker symbols directly)
 COMPANY_NAMES = {
@@ -65,6 +65,41 @@ def is_finnhub_available():
     return True
 
 
+def _format_timeago(dt_str_or_ts):
+    """Convert timestamp or ISO date string into friendly timeago text like '15m ago', '2h ago', 'Today'."""
+    try:
+        now = datetime.now()
+        dt = None
+        if isinstance(dt_str_or_ts, (int, float)) and dt_str_or_ts > 0:
+            dt = datetime.fromtimestamp(dt_str_or_ts)
+        elif isinstance(dt_str_or_ts, str) and dt_str_or_ts:
+            clean_str = dt_str_or_ts.strip()
+            for fmt in ('%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%a, %d %b %Y %H:%M:%S %Z', '%a, %d %b %Y %H:%M:%S GMT'):
+                try:
+                    dt = datetime.strptime(clean_str[:19], fmt[:len(clean_str[:19])])
+                    break
+                except Exception:
+                    continue
+        if not dt:
+            return 'Live'
+        diff = now - dt
+        seconds = diff.total_seconds()
+        if seconds <= 60:
+            return 'Just now'
+        if seconds < 3600:
+            mins = int(seconds / 60)
+            return f"{mins}m ago"
+        if seconds < 86400:
+            hours = int(seconds / 3600)
+            return f"{hours}h ago"
+        if seconds < 172800:
+            return 'Yesterday'
+        days = int(seconds / 86400)
+        return f"{days}d ago"
+    except Exception:
+        return 'Live'
+
+
 def _simple_sentiment(text):
     """Simple keyword-based sentiment fallback when TextBlob is not available."""
     positive_words = [
@@ -94,6 +129,52 @@ def _get_company_name(ticker):
     return COMPANY_NAMES.get(ticker.upper(), ticker.upper())
 
 
+def _fetch_yfinance_news(ticker, max_articles=5):
+    """Fetch live breaking news via yfinance directly (real-time for US and Global equities)."""
+    try:
+        import yfinance as yf
+        sym = ticker.upper()
+        # For Indian stocks, add .NS suffix if not present
+        if sym in COMPANY_NAMES and sym not in ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'V', 'JNJ', 'WMT', 'PG', 'DIS', 'NFLX', 'ADBE', 'CRM', 'INTC', 'AMD', 'PYPL', 'BA', 'NKE', 'KO', 'PEP', 'COST', 'IBM', 'CSCO']:
+            if not sym.endswith('.NS') and not sym.endswith('.BO'):
+                sym = f"{sym}.NS"
+
+        tk = yf.Ticker(sym)
+        raw_news = tk.news or []
+        articles = []
+        for item in raw_news:
+            content = item.get('content', {}) if isinstance(item.get('content'), dict) else item
+            title = content.get('title') or item.get('title')
+            if not title:
+                continue
+            summary = content.get('summary') or content.get('description') or item.get('summary') or ''
+            provider = content.get('provider', {})
+            source = provider.get('displayName') if isinstance(provider, dict) else (item.get('publisher') or 'Yahoo Finance')
+            url = ''
+            if 'canonicalUrl' in content and isinstance(content['canonicalUrl'], dict):
+                url = content['canonicalUrl'].get('url', '')
+            elif 'clickThroughUrl' in content and isinstance(content['clickThroughUrl'], dict):
+                url = content['clickThroughUrl'].get('url', '')
+            elif 'link' in item:
+                url = item.get('link', '')
+            pub_date = content.get('pubDate') or ''
+
+            articles.append({
+                'headline': title,
+                'summary': summary,
+                'source': source or 'Live News',
+                'url': url,
+                'datetime': 0,
+                'published_date': pub_date[:10] if len(pub_date) >= 10 else '',
+                'pub_raw': pub_date
+            })
+            if len(articles) >= max_articles:
+                break
+        return articles
+    except Exception:
+        return []
+
+
 def _fetch_finnhub_company_news(ticker, api_key, max_articles):
     """Fetch news via Finnhub company-news endpoint (works best for US stocks)."""
     import requests
@@ -109,30 +190,34 @@ def _fetch_finnhub_company_news(ticker, api_key, max_articles):
         f"&token={api_key}"
     )
 
-    resp = requests.get(url, timeout=10)
-    if not resp.ok:
-        return []
+    try:
+        resp = requests.get(url, timeout=10)
+        if not resp.ok:
+            return []
 
-    articles = resp.json()
-    if not isinstance(articles, list) or not articles:
-        return []
+        articles = resp.json()
+        if not isinstance(articles, list) or not articles:
+            return []
 
-    return articles[:max_articles]
+        return articles[:max_articles]
+    except Exception:
+        return []
 
 
 def _fetch_finnhub_general_news(api_key):
-    """Fetch general market news from Finnhub as fallback.
-    Returns list of raw article dicts.
-    """
+    """Fetch general market news from Finnhub as fallback."""
     import requests
-    url = f"https://finnhub.io/api/v1/news?category=general&token={api_key}"
-    resp = requests.get(url, timeout=10)
-    if not resp.ok:
+    try:
+        url = f"https://finnhub.io/api/v1/news?category=general&token={api_key}"
+        resp = requests.get(url, timeout=10)
+        if not resp.ok:
+            return []
+        articles = resp.json()
+        if not isinstance(articles, list):
+            return []
+        return articles
+    except Exception:
         return []
-    articles = resp.json()
-    if not isinstance(articles, list):
-        return []
-    return articles
 
 
 def _filter_articles_by_company(articles, company_name, ticker, max_articles):
@@ -162,8 +247,7 @@ def _filter_articles_by_company(articles, company_name, ticker, max_articles):
 
 def _fetch_googlenews_rss(query, max_articles):
     """
-    Fallback: Fetch news via Google News RSS (no API key required).
-    Works for any market worldwide.
+    Fetch live news via Google News RSS (real-time live feeds, no API key required).
     """
     try:
         import requests
@@ -177,7 +261,6 @@ def _fetch_googlenews_rss(query, max_articles):
         root = ElementTree.fromstring(resp.content)
         items = []
         
-        # RSS items are at: rss/channel/item
         for item_elem in root.findall('.//item')[:max_articles]:
             title = item_elem.findtext('title', '')
             link = item_elem.findtext('link', '')
@@ -187,7 +270,6 @@ def _fetch_googlenews_rss(query, max_articles):
             if not title:
                 continue
             
-            # Parse date
             published_date = ''
             if pub_date:
                 try:
@@ -207,6 +289,7 @@ def _fetch_googlenews_rss(query, max_articles):
                 'url': link,
                 'datetime': 0,
                 'published_date': published_date,
+                'pub_raw': pub_date,
             })
         
         return items
@@ -215,14 +298,20 @@ def _fetch_googlenews_rss(query, max_articles):
 
 
 def _process_articles(raw_articles, max_articles):
-    """Process raw articles into standardized format with sentiment analysis."""
+    """Process raw articles into standardized format with sentiment analysis and timeago."""
     results = []
-    for article in raw_articles[:max_articles]:
-        headline = article.get('headline', '')
-        summary = article.get('summary', '')
+    seen_titles = set()
+    for article in raw_articles:
+        headline = article.get('headline', '') or article.get('title', '')
+        summary = article.get('summary', '') or article.get('description', '')
 
         if not headline:
             continue
+            
+        clean_title = headline.strip().lower()
+        if clean_title in seen_titles:
+            continue
+        seen_titles.add(clean_title)
 
         # Combine text for sentiment analysis
         text_for_sentiment = f"{headline}. {summary}"
@@ -233,7 +322,7 @@ def _process_articles(raw_articles, max_articles):
         else:
             polarity = round(_simple_sentiment(text_for_sentiment), 3)
 
-        # Get published date
+        # Get published date & timeago
         published_date = ''
         ts = article.get('datetime', 0)
         if ts:
@@ -241,23 +330,28 @@ def _process_articles(raw_articles, max_articles):
                 published_date = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
             except Exception:
                 pass
-        # RSS feeds return a pre-formatted date
         published_date = published_date or article.get('published_date', '')
+        raw_time = article.get('pub_raw') or ts or published_date
+        timeago = _format_timeago(raw_time)
 
         results.append({
             'title': headline,
-            'source': article.get('source', 'News'),
+            'source': article.get('source', 'Live News'),
             'url': article.get('url', ''),
-            'published_at': published_date,
+            'published_at': published_date or datetime.now().strftime('%Y-%m-%d'),
+            'timeago': timeago,
             'polarity': polarity,
             'sentiment': _classify_sentiment(polarity)
         })
+        if len(results) >= max_articles:
+            break
     return results
 
 
 def get_newsapi_key():
     """Get NewsAPI key from environment."""
     return os.environ.get('NEWS_API_KEY', '').strip()
+
 
 def is_newsapi_available():
     """Check if NewsAPI key is configured."""
@@ -268,8 +362,11 @@ def is_newsapi_available():
         return False
     return True
 
+
 def _fetch_newsapi_articles(ticker, company_name, max_articles):
-    """Fetch news via NewsAPI (primary source — user configured key)."""
+    """Fetch news via NewsAPI (Tier 1 Primary Source)."""
+    if not is_newsapi_available():
+        return []
     import requests
     query = company_name if company_name != ticker.upper() else f"{ticker} stock"
     api_key = get_newsapi_key()
@@ -302,34 +399,76 @@ def _fetch_newsapi_articles(ticker, company_name, max_articles):
                 'url': a.get('url', '') or '',
                 'datetime': 0,
                 'published_date': pub_date,
+                'pub_raw': published
             })
         return articles
     except Exception:
         return []
 
 
-def fetch_news(ticker, max_articles=5):
+def _fetch_newsapi_market_news(category='all', max_articles=10):
+    """Fetch broad market breaking news via NewsAPI (Tier 1 Primary Source)."""
+    if not is_newsapi_available():
+        return []
+    import requests
+    api_key = get_newsapi_key()
+    query = "stock market OR ESG investing OR Wall Street OR Sensex"
+    if category == 'esg':
+        query = "ESG investing OR sustainable finance OR clean energy stocks"
+    elif category == 'tech':
+        query = "tech stocks OR semiconductor OR AI technology stocks"
+
+    url = (
+        f"https://newsapi.org/v2/everything"
+        f"?q={requests.utils.quote(query)}"
+        f"&apiKey={api_key}"
+        f"&pageSize={max_articles}"
+        f"&language=en"
+        f"&sortBy=publishedAt"
+    )
+    try:
+        resp = requests.get(url, timeout=10)
+        if not resp.ok:
+            return []
+        data = resp.json()
+        if data.get('status') != 'ok' or 'articles' not in data:
+            return []
+        articles = []
+        for a in data['articles'][:max_articles]:
+            headline = a.get('title', '') or ''
+            if not headline:
+                continue
+            published = a.get('publishedAt', '') or ''
+            pub_date = published[:10] if len(published) >= 10 else ''
+            articles.append({
+                'headline': headline,
+                'summary': a.get('description', '') or '',
+                'source': (a.get('source') or {}).get('name', 'NewsAPI') or 'NewsAPI',
+                'url': a.get('url', '') or '',
+                'datetime': 0,
+                'published_date': pub_date,
+                'pub_raw': published
+            })
+        return articles
+    except Exception:
+        return []
+
+
+def fetch_news(ticker, max_articles=6, force_refresh=False):
     """
-    Fetch recent news articles for a stock ticker.
+    Fetch LIVE real-time breaking news articles for a stock ticker.
 
-    Strategy 1: NewsAPI (user-configured key, dedicated news API)
-    Strategy 2: Finnhub company-news endpoint (works best for US stocks)
-    Strategy 3: Finnhub general news endpoint filtered by company name
-    Strategy 4: Google News RSS search (free, no API key, works for any stock)
-    Strategy 5: Simulated news headlines based on stock's ESG data and price trends
-
-    Args:
-        ticker: Stock ticker symbol (e.g., 'AAPL', 'RELIANCE')
-        max_articles: Maximum number of articles to return (default 5)
-
-    Returns:
-        list of dicts with 'title', 'source', 'url', 'published_at', 'polarity'
-        Returns simulated news if all strategies fail (never returns empty).
+    Multi-tier Strategy:
+    Tier 1 (PRIMARY): NewsAPI live query (if configured)
+    Tier 2 (FIRST FALLBACK): Yahoo Finance live real-time news feed
+    Tier 3 (SECONDARY FALLBACK): Google News live RSS search
+    Tier 4 (TERTIARY FALLBACK): Finnhub live company news endpoint
+    Tier 5: Simulated fallback only if all live networks fail
     """
     cache_key = f"news_{ticker.upper()}"
     now = time.time()
 
-    if cache_key in _news_cache:
+    if not force_refresh and cache_key in _news_cache:
         entry = _news_cache[cache_key]
         if (now - entry['ts']) < _NEWS_CACHE_TTL:
             return entry['data']
@@ -337,46 +476,44 @@ def fetch_news(ticker, max_articles=5):
     company_name = _get_company_name(ticker)
     raw_articles = []
 
-    # Strategy 1: NewsAPI (primary — user configured this key)
+    # Tier 1 (PRIMARY): NewsAPI
     if is_newsapi_available():
         try:
-            raw_articles = _fetch_newsapi_articles(ticker, company_name, max_articles)
+            napi = _fetch_newsapi_articles(ticker, company_name, max_articles=max_articles)
+            if napi:
+                raw_articles.extend(napi)
         except Exception:
             pass
 
-    # Strategy 2: Finnhub company-specific news (US stocks)
-    if not raw_articles:
+    # Tier 2 (FIRST FALLBACK): Yahoo Finance Live News
+    if len(raw_articles) < max_articles:
         try:
-            if is_finnhub_available():
-                api_key = get_finnhub_api_key()
-                raw_articles = _fetch_finnhub_company_news(ticker, api_key, max_articles)
+            yf_news = _fetch_yfinance_news(ticker, max_articles=max_articles)
+            if yf_news:
+                raw_articles.extend(yf_news)
         except Exception:
             pass
 
-    # Strategy 3: Finnhub general news filtered by company name
-    if not raw_articles:
-        try:
-            if is_finnhub_available():
-                api_key = get_finnhub_api_key()
-                all_general = _fetch_finnhub_general_news(api_key)
-                if all_general:
-                    raw_articles = _filter_articles_by_company(all_general, company_name, ticker, max_articles)
-        except Exception:
-            pass
-
-    # Strategy 4: Google News RSS (free, works for any stock)
-    if not raw_articles:
+    # Tier 3 (SECONDARY FALLBACK): Google News Live RSS
+    if len(raw_articles) < max_articles:
         try:
             search_query = company_name if company_name != ticker.upper() else ticker
-            raw_articles = _fetch_googlenews_rss(f"{search_query} stock", max_articles)
-            if not raw_articles:
-                raw_articles = _fetch_googlenews_rss(ticker, max_articles)
-            if not raw_articles:
-                raw_articles = _fetch_googlenews_rss(f"{company_name} {ticker}", max_articles)
+            rss_news = _fetch_googlenews_rss(f"{search_query} stock", max_articles=max_articles)
+            if rss_news:
+                raw_articles.extend(rss_news)
         except Exception:
             pass
 
-    # Strategy 5: Simulated news headlines
+    # Tier 4: Finnhub live company news
+    if len(raw_articles) < max_articles and is_finnhub_available():
+        try:
+            fh_news = _fetch_finnhub_company_news(ticker, get_finnhub_api_key(), max_articles=max_articles)
+            if fh_news:
+                raw_articles.extend(fh_news)
+        except Exception:
+            pass
+
+    # Tier 5: Simulated news fallback only if all live networks fail
     if not raw_articles:
         raw_articles = _generate_simulated_news(ticker, company_name, max_articles)
 
@@ -386,9 +523,75 @@ def fetch_news(ticker, max_articles=5):
         results = []
 
     _news_cache[cache_key] = {'data': results, 'ts': now}
-    if len(_news_cache) > 50:
+    if len(_news_cache) > 100:
         _news_cache.clear()
 
+    return results
+
+
+def fetch_live_market_news(category='all', max_articles=10):
+    """
+    Fetch general live breaking market news across global finance, ESG sustainability, and tech.
+
+    Order of priority:
+    1. NewsAPI (Tier 1 Primary)
+    2. Yahoo Finance (Tier 2 Primary Fallback)
+    3. Google News RSS (Tier 3 Secondary Fallback)
+    4. Finnhub general market news
+    """
+    cache_key = f"live_market_stream_{category}_{max_articles}"
+    now = time.time()
+    if cache_key in _news_cache:
+        entry = _news_cache[cache_key]
+        if (now - entry['ts']) < _NEWS_CACHE_TTL:
+            return entry['data']
+
+    raw_articles = []
+
+    # 1. Tier 1 (PRIMARY): NewsAPI Market News
+    if is_newsapi_available():
+        try:
+            napi = _fetch_newsapi_market_news(category=category, max_articles=max_articles)
+            if napi:
+                raw_articles.extend(napi)
+        except Exception:
+            pass
+
+    # 2. Tier 2 (FIRST FALLBACK): Yahoo Finance top market tickers
+    if len(raw_articles) < max_articles:
+        for sym in ['^GSPC', 'AAPL', 'NVDA', 'RELIANCE.NS', 'MSFT', '^NSEI']:
+            if len(raw_articles) >= max_articles * 2:
+                break
+            try:
+                yf_items = _fetch_yfinance_news(sym, max_articles=3)
+                raw_articles.extend(yf_items)
+            except Exception:
+                pass
+
+    # 3. Tier 3 (SECONDARY FALLBACK): Google News Live RSS
+    if len(raw_articles) < max_articles:
+        queries = [
+            "stock market ESG sustainable investing",
+            "market updates earnings stocks today",
+            "Sensex Nifty stock market today"
+        ]
+        for q in queries:
+            try:
+                items = _fetch_googlenews_rss(q, max_articles=5)
+                raw_articles.extend(items)
+            except Exception:
+                pass
+
+    # 4. Tier 4: Finnhub general news
+    if len(raw_articles) < max_articles and is_finnhub_available():
+        try:
+            fh = _fetch_finnhub_general_news(get_finnhub_api_key())
+            raw_articles.extend(fh[:5])
+        except Exception:
+            pass
+
+    results = _process_articles(raw_articles, max_articles)
+    _news_cache[cache_key] = {'data': results, 'ts': now}
     return results
 
 
@@ -489,12 +692,14 @@ def _classify_sentiment(polarity):
     return 'neutral'
 
 
-def get_news_sentiment(ticker):
+def get_news_sentiment(ticker, max_articles=5, force_refresh=False):
     """
     Get aggregate sentiment score from recent news for a ticker.
 
     Args:
         ticker: Stock ticker symbol
+        max_articles: Maximum number of articles to analyze
+        force_refresh: Whether to bypass cache and fetch fresh live articles
 
     Returns:
         dict with:
@@ -504,7 +709,7 @@ def get_news_sentiment(ticker):
             - headlines: list of recent headlines with sentiment
             - sentiment_breakdown: count of positive/neutral/negative articles
     """
-    articles = fetch_news(ticker, max_articles=5)
+    articles = fetch_news(ticker, max_articles=max_articles, force_refresh=force_refresh)
 
     if not articles:
         return {

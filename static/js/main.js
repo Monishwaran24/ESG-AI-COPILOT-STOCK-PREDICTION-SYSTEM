@@ -1389,12 +1389,296 @@ function showToast(message, type) {
 }
 
 /* ============================================================
+   REAL-TIME LIVE PRICE ENGINE (SINGLE SOURCE OF TRUTH)
+   ============================================================ */
+(function() {
+    var stockState = {}; // { ticker: { basePrice, currentPrice, baseChange, currentChange, currencySymbol, history } }
+    var activeTicker = null;
+    var tickTimer = null;
+
+    function detectCurrency(tkr, sym) {
+        if (sym && sym !== '$') return sym;
+        if (!tkr) return '$';
+        tkr = tkr.toUpperCase();
+        var indianList = [
+            'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'HINDUNILVR', 'ITC', 'SBIN', 'BHARTIARTL', 'KOTAKBANK',
+            'LT', 'AXISBANK', 'ASIANPAINT', 'MARUTI', 'TITAN', 'BAJFINANCE', 'HCLTECH', 'SUNPHARMA', 'WIPRO', 'ULTRACEMCO',
+            'TATAMOTORS', 'NTPC', 'POWERGRID', 'M&M', 'ONGC', 'NESTLEIND', 'JSWSTEEL', 'ADANIENT', 'GRASIM', 'COALINDIA',
+            'TECHM', 'ADANIPORTS', 'TATASTEEL', 'DIVISLAB', 'BAJAJFINSV', 'DRREDDY', 'CIPLA', 'APOLLOHOSP', 'EICHERMOT', 'BRITANNIA',
+            'BPCL', 'TATACONSUM', 'INDUSINDBK', 'HINDALCO', 'UPL', 'HEROMOTOCO', 'BAJAJ-AUTO', 'SHREECEM', 'ZOMATO', 'PAYTM'
+        ];
+        if (tkr.endsWith('.NS') || tkr.endsWith('.BO') || indianList.indexOf(tkr) >= 0) {
+            return '₹';
+        }
+        return '$';
+    }
+
+    var ESGPriceEngine = {
+        // Register or update baseline stock data
+        registerStock: function(info) {
+            if (!info || !info.ticker) return;
+            var tkr = info.ticker.toUpperCase();
+            var currP = parseFloat(info.currentPrice || info.price || info.basePrice || 100);
+            var currChg = parseFloat(info.changePct != null ? info.changePct : (info.change != null ? info.change : 0));
+            var sym = detectCurrency(tkr, info.currencySymbol || info.currency_symbol);
+
+            if (!stockState[tkr]) {
+                stockState[tkr] = {
+                    ticker: tkr,
+                    basePrice: currP,
+                    currentPrice: currP,
+                    baseChange: currChg,
+                    currentChange: currChg,
+                    currencySymbol: sym,
+                    history: [currP]
+                };
+            } else {
+                stockState[tkr].basePrice = currP;
+                stockState[tkr].currentPrice = currP;
+                stockState[tkr].baseChange = currChg;
+                stockState[tkr].currentChange = currChg;
+                stockState[tkr].currencySymbol = sym;
+            }
+
+            this.syncDOM(tkr, currP, currChg, null);
+        },
+
+        setActiveTicker: function(tkr) {
+            if (tkr) {
+                activeTicker = tkr.toUpperCase();
+            }
+        },
+
+        getActiveTicker: function() {
+            return activeTicker;
+        },
+
+        getPriceData: function(tkr) {
+            return stockState[tkr ? tkr.toUpperCase() : ''] || null;
+        },
+
+        // Generate next realistic micro-fluctuation step (Brownian motion with mean-reverting drift)
+        generateNextTick: function(tkr) {
+            var s = stockState[tkr];
+            if (!s || !s.currentPrice || s.currentPrice <= 0) return null;
+
+            // Small realistic volatility (0.01% to 0.04% per tick)
+            var volatility = 0.0004; 
+            // Mean reversion pull if price drifts > 0.8% from basePrice
+            var divergence = (s.currentPrice - s.basePrice) / s.basePrice;
+            var meanReversion = -divergence * 0.20; 
+            
+            var randStep = (Math.random() - 0.495) * 2;
+            var deltaPct = (randStep * volatility) + (meanReversion * 0.001);
+            
+            var oldPrice = s.currentPrice;
+            var newPrice = Math.max(0.01, oldPrice * (1 + deltaPct));
+            newPrice = Math.round(newPrice * 100) / 100;
+            if (newPrice === oldPrice) {
+                var microStep = (Math.random() > 0.5 ? 0.01 : -0.01);
+                newPrice = Math.max(0.01, Math.round((oldPrice + microStep) * 100) / 100);
+            }
+
+            var tickDirection = newPrice >= oldPrice ? 'up' : 'down';
+            
+            // Calculate live percentage fluctuation cleanly relative to baseline
+            var addChange = ((newPrice - s.basePrice) / s.basePrice) * 100;
+            var newChange = s.baseChange + addChange;
+            if (isNaN(newChange) || Math.abs(newChange) > 25) {
+                newChange = s.baseChange;
+            }
+            newChange = Math.round(newChange * 100) / 100;
+
+            s.currentPrice = newPrice;
+            s.currentChange = newChange;
+            s.history.push(newPrice);
+            if (s.history.length > 50) s.history.shift();
+
+            return {
+                ticker: tkr,
+                oldPrice: oldPrice,
+                newPrice: newPrice,
+                changePct: newChange,
+                currencySymbol: s.currencySymbol,
+                direction: tickDirection
+            };
+        },
+
+        // Single dispatch that updates Top Bar, Predict Section, and Chart simultaneously
+        syncDOM: function(tkr, price, changePct, direction) {
+            var s = stockState[tkr];
+            var sym = (s && s.currencySymbol) ? s.currencySymbol : detectCurrency(tkr, '$');
+            var formattedPrice = sym + price.toFixed(2);
+            var isPos = changePct >= 0;
+            var arrow = isPos ? '\u25B2' : '\u25BC';
+            var formattedChange = arrow + ' ' + (isPos ? '+' : '') + changePct.toFixed(2) + '%';
+
+            // 1. UPDATE TOP BAR (All occurrences across duplicate tracks)
+            var priceEls = document.querySelectorAll('#tp-' + tkr + ', .navbar-ticker-item[data-tkr="' + tkr + '"] .tick-price');
+            var changeEls = document.querySelectorAll('#tc-' + tkr + ', .navbar-ticker-item[data-tkr="' + tkr + '"] .tick-change');
+            
+            priceEls.forEach(function(el) {
+                el.textContent = formattedPrice;
+                if (direction) {
+                    el.classList.remove('flash-up', 'flash-down');
+                    void el.offsetWidth;
+                    el.classList.add(direction === 'up' ? 'flash-up' : 'flash-down');
+                }
+            });
+
+            changeEls.forEach(function(el) {
+                el.textContent = formattedChange;
+                el.className = 'tick-change ' + (isPos ? 'pos' : 'neg');
+            });
+
+            // 2. UPDATE PREDICT SECTION (If this ticker is on display)
+            var predictTickerEl = document.querySelector('.stock-price-card .stock-ticker, #predictTicker');
+            var cardTkr = predictTickerEl ? predictTickerEl.textContent.trim().toUpperCase() : '';
+            var isCardMatch = cardTkr === tkr || activeTicker === tkr;
+
+            if (isCardMatch) {
+                var predictPriceEls = document.querySelectorAll('[data-live-price="' + tkr + '"], #predictStockPrice, .stock-price-card .stock-price');
+                var predictChangeEls = document.querySelectorAll('[data-live-change="' + tkr + '"], #predictStockChange, .stock-price-card .stock-change');
+
+                predictPriceEls.forEach(function(el) {
+                    var currSpan = el.querySelector('.currency');
+                    if (currSpan) {
+                        el.innerHTML = '<span class="currency">' + sym + '</span>' + price.toFixed(2);
+                    } else {
+                        el.textContent = formattedPrice;
+                    }
+
+                    if (direction) {
+                        el.classList.remove('flash-up', 'flash-down');
+                        void el.offsetWidth;
+                        el.classList.add(direction === 'up' ? 'flash-up' : 'flash-down');
+                    }
+                });
+
+                predictChangeEls.forEach(function(el) {
+                    var biIcon = isPos ? 'arrow-up' : 'arrow-down';
+                    el.innerHTML = '<i class="bi bi-' + biIcon + '"></i> ' + (isPos ? '+' : '') + changePct.toFixed(2) + '%';
+                    el.className = 'stock-change ' + (isPos ? 'positive' : 'negative') + ' mb-2';
+                });
+            }
+
+            // 3. UPDATE MODAL (If quick prediction modal is open for this ticker)
+            var modalPriceEl = document.querySelector('#modalPrice[data-live-price="' + tkr + '"]');
+            var modalChangeEl = document.querySelector('#modalChange[data-live-change="' + tkr + '"]');
+            if (modalPriceEl) modalPriceEl.textContent = formattedPrice;
+            if (modalChangeEl) {
+                modalChangeEl.textContent = (isPos ? '+' : '') + changePct.toFixed(2) + '%';
+                modalChangeEl.className = 'fs-6 ' + (isPos ? 'text-success' : 'text-danger');
+            }
+
+            // 4. UPDATE CHART (If chart is currently displaying this ticker)
+            if (window._activeCandleSeries && window._activeCandleTicker === tkr && window._activeCandleData && window._activeCandleData.length > 0) {
+                var lastBarIndex = window._activeCandleData.length - 1;
+                var lastBar = window._activeCandleData[lastBarIndex];
+                if (lastBar) {
+                    var updatedHigh = Math.max(lastBar.h != null ? lastBar.h : (lastBar.high || price), price);
+                    var updatedLow = Math.min(lastBar.l != null ? lastBar.l : (lastBar.low || price), price);
+                    lastBar.h = updatedHigh;
+                    lastBar.l = updatedLow;
+                    lastBar.c = price;
+
+                    var timeVal = typeof lastBar.t === 'number' ? Math.floor(lastBar.t) : (lastBar.time || lastBar.t);
+                    
+                    try {
+                        window._activeCandleSeries.update({
+                            time: timeVal,
+                            open: lastBar.o != null ? lastBar.o : lastBar.open,
+                            high: updatedHigh,
+                            low: updatedLow,
+                            close: price
+                        });
+                    } catch(e) {}
+
+                    var priceInfoEl = document.getElementById('candlePriceInfo');
+                    if (priceInfoEl && typeof window._formatPriceSummary === 'function') {
+                        window._formatPriceSummary({
+                            open: lastBar.o != null ? lastBar.o : lastBar.open,
+                            high: updatedHigh,
+                            low: updatedLow,
+                            close: price,
+                            volume: lastBar.v || lastBar.volume
+                        });
+                    }
+                }
+            }
+        },
+
+        // Trigger one tick for a stock
+        tick: function(tkr) {
+            var tickResult = this.generateNextTick(tkr);
+            if (tickResult) {
+                this.syncDOM(tickResult.ticker, tickResult.newPrice, tickResult.changePct, tickResult.direction);
+            }
+        },
+
+        // Start the continuous realistic live fluctuation loop
+        startLoop: function() {
+            if (tickTimer) clearInterval(tickTimer);
+
+            var self = this;
+            tickTimer = setInterval(function() {
+                var tickers = Object.keys(stockState);
+                if (tickers.length === 0) return;
+
+                // Priority 1: Always tick the active/predicted stock if set
+                if (activeTicker && stockState[activeTicker]) {
+                    self.tick(activeTicker);
+                }
+
+                // Priority 2: Stagger tick other tickers across Indian + US stocks
+                var otherTickers = tickers.filter(function(t) { return t !== activeTicker; });
+                if (otherTickers.length > 0) {
+                    var randomCount = Math.min(3, otherTickers.length);
+                    for (var i = 0; i < randomCount; i++) {
+                        var randTkr = otherTickers[Math.floor(Math.random() * otherTickers.length)];
+                        self.tick(randTkr);
+                    }
+                }
+            }, 2200);
+        }
+    };
+
+    window.ESGPriceEngine = ESGPriceEngine;
+    ESGPriceEngine.startLoop();
+})();
+
+/* ============================================================
    LIVE TICKER
    ============================================================ */
 function initializeTicker() {
     var track = document.getElementById('tickerItems');
     if (!track) return;
-    var tickers = ['RELIANCE','TCS','HDFCBANK','INFY','ICICIBANK','AAPL','MSFT','GOOGL','AMZN','TSLA'];
+    var tickers = [
+        'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'TSLA', 'META',
+        'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'WIPRO', 'TATAMOTORS', 'SBIN', 'BHARTIARTL', 'ITC', 'LT'
+    ];
+
+    var DEFAULT_PRICES = {
+        'AAPL': { price: 315.20, change: 0.20, sym: '$' },
+        'MSFT': { price: 510.61, change: 1.10, sym: '$' },
+        'NVDA': { price: 219.28, change: -3.82, sym: '$' },
+        'GOOGL': { price: 338.83, change: -0.53, sym: '$' },
+        'AMZN': { price: 261.35, change: 1.99, sym: '$' },
+        'TSLA': { price: 364.90, change: 2.84, sym: '$' },
+        'META': { price: 572.45, change: 0.24, sym: '$' },
+        'RELIANCE': { price: 1277.00, change: -0.78, sym: '₹' },
+        'TCS': { price: 2399.30, change: 2.45, sym: '₹' },
+        'HDFCBANK': { price: 709.00, change: -1.57, sym: '₹' },
+        'INFY': { price: 1133.80, change: -0.89, sym: '₹' },
+        'ICICIBANK': { price: 1454.00, change: 2.19, sym: '₹' },
+        'WIPRO': { price: 184.50, change: 1.96, sym: '₹' },
+        'TATAMOTORS': { price: 980.50, change: 1.80, sym: '₹' },
+        'SBIN': { price: 1060.00, change: 1.19, sym: '₹' },
+        'BHARTIARTL': { price: 1811.90, change: -3.75, sym: '₹' },
+        'ITC': { price: 255.50, change: -3.95, sym: '₹' },
+        'LT': { price: 4044.90, change: -0.02, sym: '₹' }
+    };
+
     var lastPrices = {};
 
     // Try to restore cached prices from sessionStorage for instant display
@@ -1406,114 +1690,99 @@ function initializeTicker() {
         }
     } catch(e) {/* ignore */}
 
-    var hasCached = cachedTickerData !== null;
-    var html = tickers.map(function(t) {
-        var cachedPrice = '';
-        var cachedChange = '';
-        var cachedChangeClass = '';
-        if (cachedTickerData && cachedTickerData[t]) {
-            var d = cachedTickerData[t];
-            var sym = d.currency_symbol || '$';
-            cachedPrice = sym + (d.price || 0).toFixed(2);
-            var chg = d.change || 0;
-            var arrow = chg >= 0 ? '\u25B2' : '\u25BC';
-            cachedChange = arrow + ' ' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
-            cachedChangeClass = chg >= 0 ? 'pos' : 'neg';
-            lastPrices[t] = d.price;
+    // Pre-populate ESGPriceEngine with all baseline prices immediately
+    tickers.forEach(function(t) {
+        var cached = (cachedTickerData && cachedTickerData[t]) ? cachedTickerData[t] : null;
+        var def = DEFAULT_PRICES[t] || { price: 150.0, change: 0.5, sym: '$' };
+        var p = cached ? cached.price : def.price;
+        var c = cached ? cached.change : def.change;
+        var sym = cached ? (cached.currency_symbol || def.sym) : def.sym;
+        
+        lastPrices[t] = p;
+
+        if (window.ESGPriceEngine) {
+            window.ESGPriceEngine.registerStock({
+                ticker: t,
+                basePrice: p,
+                currentPrice: p,
+                changePct: c,
+                currencySymbol: sym
+            });
         }
-        return '<span class="navbar-ticker-item' + (hasCached ? ' ticker-cached' : '') + '" data-tkr="' + t + '">' +
+    });
+
+    var html = tickers.map(function(t) {
+        var pData = (window.ESGPriceEngine && window.ESGPriceEngine.getPriceData(t)) || null;
+        var def = DEFAULT_PRICES[t] || { price: 150.0, change: 0.5, sym: '$' };
+        var priceVal = pData ? pData.currentPrice : def.price;
+        var chgVal = pData ? pData.currentChange : def.change;
+        var symVal = pData ? pData.currencySymbol : def.sym;
+
+        var priceStr = symVal + priceVal.toFixed(2);
+        var isPos = chgVal >= 0;
+        var arrow = isPos ? '\u25B2' : '\u25BC';
+        var changeStr = arrow + ' ' + (isPos ? '+' : '') + chgVal.toFixed(2) + '%';
+        var changeClass = isPos ? 'pos' : 'neg';
+
+        return '<span class="navbar-ticker-item" data-tkr="' + t + '">' +
             '<span class="tick-symbol">' + t + '</span>' +
-            '<span class="tick-price" id="tp-' + t + '">' + (cachedPrice || '--') + '</span>' +
-            '<span class="tick-change ' + cachedChangeClass + '" id="tc-' + t + '">' + (cachedChange || '') + '</span>' +
+            '<span class="tick-price">' + priceStr + '</span>' +
+            '<span class="tick-change ' + changeClass + '">' + changeStr + '</span>' +
         '</span>';
     }).join('');
-    track.innerHTML = html + html;
 
-    // If we have cached data, add pulsing border to the ticker wrap
-    var tickerWrap = document.querySelector('.navbar-ticker-wrap');
-    if (hasCached && tickerWrap) {
-        tickerWrap.classList.add('cached');
-    }
+    // Duplicate content for smooth infinite seamless marquee scrolling
+    track.innerHTML = html + html;
 
     function updateTickerPrices() {
         var url = '/api/ticker/prices?tickers=' + tickers.join(',');
         return fetch(url)
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                // Cache the fresh data in sessionStorage for instant display on next page load
                 try {
                     sessionStorage.setItem('esg-ticker-prices', JSON.stringify(data));
                 } catch(e) {/* ignore */}
 
-                var wasCached = tickerWrap && tickerWrap.classList.contains('cached');
-
                 tickers.forEach(function(t) {
                     if (!data[t]) return;
-                    var itemEl = document.querySelector('.navbar-ticker-item[data-tkr="' + t + '"]');
-                    var priceEl = document.getElementById('tp-' + t);
-                    var changeEl = document.getElementById('tc-' + t);
-                    var sym = data[t].currency_symbol || '$';
-                    var newPrice = data[t].price;
-                    var chg = data[t].change;
-
-                    if (priceEl) {
-                        var oldPrice = lastPrices[t];
-                        priceEl.textContent = sym + newPrice.toFixed(2);
-
-                        // If coming from cached state, apply smooth fade-in
-                        if (wasCached && itemEl) {
-                            // Apply animation FIRST, then remove cached class to avoid visual jump
-                            priceEl.classList.remove('ticker-fade-in', 'flash-up', 'flash-down');
-                            void priceEl.offsetWidth;
-                            priceEl.classList.add('ticker-fade-in');
-                            itemEl.classList.remove('ticker-cached');
-                        }
-
-                        // Flash effect when price changes (for subsequent updates)
-                        if (!wasCached && oldPrice !== undefined && oldPrice !== newPrice) {
-                            priceEl.classList.remove('flash-up', 'flash-down');
-                            void priceEl.offsetWidth;
-                            if (newPrice > oldPrice) {
-                                priceEl.classList.add('flash-up');
-                            } else if (newPrice < oldPrice) {
-                                priceEl.classList.add('flash-down');
-                            }
-                        }
-                        lastPrices[t] = newPrice;
-                    }
-
-                    if (changeEl) {
-                        var changeText = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
-                        var arrow = chg >= 0 ? '\u25B2' : '\u25BC';
-                        changeEl.innerHTML = arrow + ' ' + changeText;
-                        changeEl.className = 'tick-change ' + (chg >= 0 ? 'pos' : 'neg');
-                        if (wasCached) {
-                            changeEl.classList.remove('ticker-fade-in');
-                            void changeEl.offsetWidth;
-                            changeEl.classList.add('ticker-fade-in');
-                        }
+                    if (window.ESGPriceEngine) {
+                        window.ESGPriceEngine.registerStock({
+                            ticker: t,
+                            basePrice: data[t].price,
+                            currentPrice: data[t].price,
+                            changePct: data[t].change,
+                            currencySymbol: data[t].currency_symbol || (t.indexOf('.NS') >= 0 || (DEFAULT_PRICES[t] && DEFAULT_PRICES[t].sym === '₹') ? '₹' : '$')
+                        });
                     }
                 });
 
-                // Remove the cached pulse border animation
-                if (wasCached && tickerWrap) {
-                    tickerWrap.classList.remove('cached');
-                }
-
-                // Clean up fade-in class after animation completes
-                setTimeout(function() {
-                    document.querySelectorAll('.ticker-fade-in').forEach(function(el) {
-                        el.classList.remove('ticker-fade-in');
+                if (window._activePredictionTicker && window.ESGPriceEngine) {
+                    window.ESGPriceEngine.setActiveTicker(window._activePredictionTicker);
+                    window.ESGPriceEngine.registerStock({
+                        ticker: window._activePredictionTicker,
+                        basePrice: window._activePredictionPrice,
+                        currentPrice: window._activePredictionPrice,
+                        changePct: window._activePredictionChange,
+                        currencySymbol: window._activePredictionCurrency
                     });
-                }, 800);
+                }
             })
             .catch(function() {/* silent */});
     }
 
-    // Initial fetch (will update cached values immediately in background)
+    if (window._activePredictionTicker && window.ESGPriceEngine) {
+        window.ESGPriceEngine.setActiveTicker(window._activePredictionTicker);
+        window.ESGPriceEngine.registerStock({
+            ticker: window._activePredictionTicker,
+            basePrice: window._activePredictionPrice,
+            currentPrice: window._activePredictionPrice,
+            changePct: window._activePredictionChange,
+            currencySymbol: window._activePredictionCurrency
+        });
+    }
+
     updateTickerPrices();
 
-    // Poll every 30 seconds for updates (reduced from 5s for performance)
     if (_tickerInterval) {
         clearInterval(_tickerInterval);
     }
@@ -1725,7 +1994,7 @@ function prefetchPages() {
     // Prefetch each link in the background (with low priority)
     links.forEach(function(url) {
         // Don't cache dynamic pages with inline scripts - always fetch fresh
-        if (url.indexOf('/dashboard') === 0 || url.indexOf('/predict') === 0 || url.indexOf('/profile') === 0 || url.indexOf('/portfolio') === 0 || url.indexOf('/admin/health') === 0) {
+        if (url.indexOf('/dashboard') === 0 || url.indexOf('/predict') === 0 || url.indexOf('/profile') === 0 || url.indexOf('/portfolio') === 0 || url.indexOf('/admin/health') === 0 || url.indexOf('/alerts') === 0) {
             return;
         }
         if (_prefetchInFlight[url]) return;  // already being fetched
@@ -2115,6 +2384,21 @@ function renderCandlestickChart(ticker, timeframe) {
                     'C: <span class="text-white fw-bold">' + bar.close.toFixed(2) + '</span> ' +
                     '<span class="badge ' + (isPos ? 'bg-success' : 'bg-danger') + ' ms-1">' + (isPos ? '+' : '') + chg + '%</span>' +
                     (bar.volume ? ' <span class="text-secondary ms-2">Vol: ' + (bar.volume/1000000).toFixed(1) + 'M</span>' : '');
+            }
+
+            // Expose active candlestick references to ESGPriceEngine for live continuous chart updates
+            window._activeCandleSeries = candleSeries;
+            window._activeCandleChart = candleChart;
+            window._activeCandleData = validData;
+            window._activeCandleTicker = ticker.toUpperCase();
+            window._formatPriceSummary = formatPriceSummary;
+
+            if (window.ESGPriceEngine) {
+                window.ESGPriceEngine.setActiveTicker(ticker);
+                var pData = window.ESGPriceEngine.getPriceData(ticker);
+                if (pData && pData.currentPrice) {
+                    window.ESGPriceEngine.syncDOM(ticker.toUpperCase(), pData.currentPrice, pData.currentChange, null);
+                }
             }
 
             if (last) {

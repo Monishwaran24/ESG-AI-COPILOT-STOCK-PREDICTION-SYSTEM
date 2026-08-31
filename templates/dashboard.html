@@ -747,17 +747,18 @@
             });
         });
 
-        // Load news for watched stocks (or top key equities fallback)
-        function loadWatchedStocksNews() {
+        // Load live news for watched stocks (or top market equities)
+        function loadWatchedStocksNews(isFresh) {
             if (typeof fetch === 'undefined') return;
-            fetch('/api/watchlist')
+            var container = document.getElementById('watchedNewsContainer');
+            var countBadge = document.getElementById('watchedNewsCount');
+            if (!container) return;
+
+            var freshQuery = isFresh ? '?fresh=1' : '';
+
+            fetch('/api/watchlist' + freshQuery)
                 .then(function(r) { return r.json(); })
                 .then(function(watched) {
-                    var container = document.getElementById('watchedNewsContainer');
-                    var countBadge = document.getElementById('watchedNewsCount');
-                    if (!container) return;
-
-                    // Fallback to top market leaders if user watchlist is empty
                     var targetStocks = (watched && watched.length > 0) ? watched : [
                         { ticker: 'AAPL', alert_enabled: true },
                         { ticker: 'MSFT', alert_enabled: false },
@@ -766,15 +767,16 @@
                         { ticker: 'TCS', alert_enabled: false }
                     ];
 
-                    if (countBadge) countBadge.textContent = (watched && watched.length > 0) ? watched.length + ' Watched' : 'Curated Stream';
-                    container.innerHTML = '<div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm me-2 text-esg" role="status"></div>Loading real-time sentiment stream...</div>';
+                    if (countBadge) {
+                        countBadge.innerHTML = '<span class="spinner-grow spinner-grow-sm text-success me-1" style="width:7px;height:7px;" role="status"></span> Live Feed';
+                    }
 
                     var alertStatus = {};
                     targetStocks.forEach(function(w) { alertStatus[w.ticker] = w.alert_enabled; });
 
                     var tickers = targetStocks.slice(0, 5).map(function(w) { return w.ticker; });
                     var promises = tickers.map(function(t) {
-                        return fetch('/api/news/' + t)
+                        return fetch('/api/news/' + t + (isFresh ? '?fresh=1' : ''))
                             .then(function(r) { return r.json(); })
                             .then(function(d) { return { ticker: t, data: d }; })
                             .catch(function() { return { ticker: t, data: null }; });
@@ -785,20 +787,22 @@
                             var html = '';
                             results.forEach(function(r) {
                                 var ns = r.data && r.data.sentiment;
-                                if (!ns) return;
+                                var articles = (r.data && r.data.articles) || (ns && ns.headlines) || [];
+                                if (!ns && articles.length === 0) return;
 
-                                var label = ns.sentiment_label || 'Neutral';
+                                var label = (ns && ns.sentiment_label) || 'Neutral';
                                 var labelLower = label.toLowerCase();
                                 var labelIcon = label === 'Positive' ? 'emoji-sunglasses' : label === 'Negative' ? 'emoji-frown' : 'emoji-neutral';
-                                var breakdown = ns.sentiment_breakdown || {positive: 0, neutral: 0, negative: 0};
-                                var avgPol = ns.avg_polarity || 0;
-                                var avgColor = avgPol > 0.1 ? '#00e676' : avgPol < -0.1 ? '#ff1744' : '#ffc107';
+                                var breakdown = (ns && ns.sentiment_breakdown) || {positive: 0, neutral: 0, negative: 0};
+                                var avgPol = (ns && ns.avg_polarity) || 0;
+                                var avgColor = avgPol > 0.1 ? '#00f59b' : avgPol < -0.1 ? '#ff3366' : '#ffb800';
 
-                                html += '<div class="p-3 mb-3 rounded-3" style="background: rgba(8, 20, 36, 0.6); border: 1px solid rgba(255, 255, 255, 0.07);">';
+                                html += '<div class="p-3 mb-3 rounded-3" style="background: rgba(11, 24, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.08);">';
                                 html += '<div class="d-flex align-items-center justify-content-between mb-2">';
                                 html += '<div class="d-flex align-items-center gap-2">';
-                                html += '<a href="/predict?ticker=' + r.ticker + '" class="fw-bold text-esg text-decoration-none" style="font-size: 1.05rem;">' + r.ticker + '</a>';
+                                html += '<a href="/predict?ticker=' + r.ticker + '" class="fw-bold text-esg text-decoration-none font-mono" style="font-size: 1.05rem;">' + r.ticker + '</a>';
                                 html += '<span class="sentiment-summary-badge ' + labelLower + '" style="font-size: 0.72rem; padding: 2px 8px;"><i class="bi bi-' + labelIcon + ' me-1"></i>' + label + '</span>';
+                                html += '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 small" style="font-size: 0.65rem;">LIVE</span>';
                                 html += '</div>';
                                 html += '<div class="d-flex align-items-center gap-2">';
                                 var isAlertOn = alertStatus[r.ticker];
@@ -813,19 +817,26 @@
                                 html += '<span>Polarity: <strong style="color:' + avgColor + ';">' + avgPol.toFixed(2) + '</strong></span>';
                                 html += '</div>';
 
-                                var headlines = ns.headlines || [];
-                                if (headlines.length > 0) {
+                                if (articles.length > 0) {
                                     html += '<div class="d-flex flex-column gap-1.5">';
-                                    var maxShow = Math.min(headlines.length, 2);
+                                    var maxShow = Math.min(articles.length, 2);
                                     for (var i = 0; i < maxShow; i++) {
-                                        var hl = headlines[i];
+                                        var hl = articles[i];
                                         var s = hl.sentiment || 'neutral';
                                         var sColor = s === 'positive' ? 'text-success' : s === 'negative' ? 'text-danger' : 'text-info';
                                         var url = hl.url || '#';
-                                        html += '<a href="' + url + '" target="_blank" rel="noopener" class="text-decoration-none text-light small d-flex align-items-center gap-2 p-1.5 rounded" style="background: rgba(255,255,255,0.03); font-size: 0.8rem;">';
-                                        html += '<i class="bi bi-circle-fill ' + sColor + '" style="font-size: 0.45rem;"></i>';
-                                        html += '<span class="text-truncate flex-grow-1">' + escapeHtml(hl.title || '') + '</span>';
-                                        html += '<i class="bi bi-box-arrow-up-right text-muted" style="font-size: 0.7rem;"></i>';
+                                        var timeago = hl.timeago || 'Recent';
+                                        var sourceName = hl.source || 'Live Feed';
+                                        html += '<a href="' + url + '" target="_blank" rel="noopener" class="text-decoration-none text-light small d-flex align-items-center justify-content-between gap-2 p-2 rounded" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; transition: all 0.2s ease;">';
+                                        html += '<div class="d-flex align-items-center gap-2 text-truncate">';
+                                        html += '<i class="bi bi-circle-fill ' + sColor + '" style="font-size: 0.45rem; flex-shrink: 0;"></i>';
+                                        html += '<span class="text-truncate">' + escapeHtml(hl.title || hl.headline || '') + '</span>';
+                                        html += '</div>';
+                                        html += '<div class="d-flex align-items-center gap-2 flex-shrink-0 text-muted" style="font-size: 0.7rem;">';
+                                        html += '<span class="badge bg-secondary bg-opacity-25 text-light">' + escapeHtml(sourceName) + '</span>';
+                                        html += '<span class="font-mono text-secondary"><i class="bi bi-clock me-1"></i>' + escapeHtml(timeago) + '</span>';
+                                        html += '<i class="bi bi-box-arrow-up-right text-muted"></i>';
+                                        html += '</div>';
                                         html += '</a>';
                                     }
                                     html += '</div>';
@@ -833,21 +844,26 @@
                                 html += '</div>';
                             });
 
-                            if (!anyNews) {
+                            if (!html) {
                                 html = '<div class="text-center py-4 text-muted"><i class="bi bi-newspaper me-2"></i>No recent news found for your watched stocks.</div>';
                             }
                             container.innerHTML = html;
                         })
-                        .catch(function() {
-                            container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-2"></i>Could not load news. Try again later.</div>';
+                        .catch(function(err) {
+                            container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-2"></i>Could not load news: ' + escapeHtml(err.message || 'Network error') + '</div>';
                         });
                 })
                 .catch(function() {
-                    var container = document.getElementById('watchedNewsContainer');
                     if (container) {
                         container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-exclamation-triangle me-2"></i>Could not load watched stocks.</div>';
                     }
                 });
+        }
+
+        // Periodic live news auto-refresher every 45s
+        setInterval(function() {
+            loadWatchedStocksNews(false);
+        }, 45000);
         }
 
         // Wire up alert toggle buttons (event delegation)
@@ -963,9 +979,27 @@
                     document.getElementById('modalContent').style.display = 'block';
                     
                     var isPos = data.price_change_pct >= 0;
-                    document.getElementById('modalPrice').textContent = (data.currency_symbol || '$') + data.current_price.toFixed(2);
-                    document.getElementById('modalChange').textContent = (isPos ? '+' : '') + data.price_change_pct.toFixed(2) + '%';
-                    document.getElementById('modalChange').className = 'fs-6 ' + (isPos ? 'text-success' : 'text-danger');
+                    var modalPriceEl = document.getElementById('modalPrice');
+                    var modalChangeEl = document.getElementById('modalChange');
+                    if (modalPriceEl) {
+                        modalPriceEl.setAttribute('data-live-price', data.ticker);
+                        modalPriceEl.textContent = (data.currency_symbol || '$') + data.current_price.toFixed(2);
+                    }
+                    if (modalChangeEl) {
+                        modalChangeEl.setAttribute('data-live-change', data.ticker);
+                        modalChangeEl.textContent = (isPos ? '+' : '') + data.price_change_pct.toFixed(2) + '%';
+                        modalChangeEl.className = 'fs-6 ' + (isPos ? 'text-success' : 'text-danger');
+                    }
+                    if (window.ESGPriceEngine) {
+                        window.ESGPriceEngine.setActiveTicker(data.ticker);
+                        window.ESGPriceEngine.registerStock({
+                            ticker: data.ticker,
+                            basePrice: data.current_price,
+                            currentPrice: data.current_price,
+                            changePct: data.price_change_pct,
+                            currencySymbol: data.currency_symbol || (data.market === 'IN' ? '₹' : '$')
+                        });
+                    }
                     document.getElementById('modalCompany').textContent = data.company;
                     
                     var recEl = document.getElementById('modalRec');

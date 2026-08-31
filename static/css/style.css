@@ -1,118 +1,153 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
 /* ============================================================
-   ESG Stock Prediction System - Custom Styles
+   ESG Stock Prediction System - Next-Gen Fintech Theme v3.0
    ============================================================
-   Modern, professional design with ESG-themed color palette.
-   Includes sidebar navigation, cards, charts, and animations.
+   Extreme UI/UX Aesthetic: Obsidian Glass, Aurora Ambient Mesh,
+   Luminous Gradients, JetBrains Mono Numbers & Tactile Feedback.
    ============================================================ */
 
 /* ----- CSS Variables / Color Theme (Dark - Default) ----- */
 :root {
-    --esg-primary: #1b5e20;
-    --esg-primary-light: #4caf50;
-    --esg-primary-dark: #0d3b0f;
-    --esg-secondary: #2e7d32;
-    --esg-accent: #00e676;
-    --esg-gold: #ffc107;
-    --env-color: #2196F3;
-    --social-color: #FF9800;
-    --gov-color: #9C27B0;
-    --buy-color: #00e676;
-    --hold-color: #ff9800;
-    --sell-color: #ff1744;
-    --bg-dark: #071322;
-    --bg-darker: #040a14;
-    --bg-card: rgba(14, 34, 61, 0.72);
-    --bg-card-hover: rgba(20, 48, 82, 0.82);
-    --glass-card-bg: linear-gradient(145deg, rgba(14, 34, 61, 0.72) 0%, rgba(8, 20, 36, 0.82) 100%);
+    --font-main: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Core ESG Brand Accents */
+    --esg-primary: #00e676;
+    --esg-primary-light: #69f0ae;
+    --esg-primary-dark: #00b248;
+    --esg-secondary: #00c853;
+    --esg-accent: #00f59b;
+    --esg-glow: rgba(0, 245, 155, 0.35);
+    --esg-gold: #ffb800;
+    --esg-cyan: #00d2ff;
+    --esg-purple: #a855f7;
+
+    /* ESG Pillar Palette */
+    --env-color: #00d2ff;
+    --env-glow: rgba(0, 210, 255, 0.3);
+    --social-color: #ff9800;
+    --social-glow: rgba(255, 152, 0, 0.3);
+    --gov-color: #c084fc;
+    --gov-glow: rgba(192, 132, 252, 0.3);
+
+    /* Signal Indicators */
+    --buy-color: #00f59b;
+    --buy-glow: rgba(0, 245, 155, 0.35);
+    --hold-color: #ffb800;
+    --hold-glow: rgba(255, 184, 0, 0.35);
+    --sell-color: #ff3366;
+    --sell-glow: rgba(255, 51, 102, 0.35);
+
+    /* Deep Space Cyber-Obsidian Canvas */
+    --bg-dark: #070d18;
+    --bg-darker: #040810;
+    --bg-body: #050b14;
+    --bg-elevated: #0b1424;
+
+    /* Glass Surfaces */
+    --bg-card: rgba(11, 22, 38, 0.65);
+    --bg-card-hover: rgba(16, 32, 54, 0.82);
+    --glass-card-bg: linear-gradient(135deg, rgba(16, 31, 53, 0.7) 0%, rgba(8, 17, 31, 0.85) 100%);
     --glass-card-border: 1px solid rgba(255, 255, 255, 0.08);
-    --text-primary: #e3f2fd;
-    --text-secondary: #90caf9;
+    --glass-card-border-glow: 1px solid rgba(0, 245, 155, 0.25);
+    --glass-panel: rgba(13, 25, 43, 0.6);
+
+    /* High Fidelity Typography */
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
     --text-muted: #64748b;
+    --text-highlight: #ffffff;
+
+    /* Borders & Shadows */
     --border-color: rgba(255, 255, 255, 0.08);
-    --shadow-color: rgba(0, 0, 0, 0.35);
+    --border-light: rgba(255, 255, 255, 0.14);
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+    --card-shadow-hover: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 245, 155, 0.15);
+    --neon-glow: 0 0 20px rgba(0, 245, 155, 0.4);
+
+    /* Layout & Navigation */
     --sidebar-width: 260px;
-    --sidebar-bg: linear-gradient(180deg, #071a10 0%, #0d2c18 50%, #071a10 100%);
-    --transition-speed: 0.3s;
-    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-    --green: #00e676;
-    --red: #ff1744;
-    --bg-body: #071322;
-    --ticker-bg: #040a14;
-    --modal-overlay: rgba(0, 0, 0, 0.75);
+    --sidebar-bg: linear-gradient(180deg, rgba(5, 11, 20, 0.95) 0%, rgba(9, 19, 34, 0.98) 100%);
+    --ticker-bg: rgba(4, 8, 16, 0.85);
+    --modal-overlay: rgba(3, 7, 14, 0.85);
+    --transition-speed: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    --green: #00f59b;
+    --red: #ff3366;
 }
 
 /* ----- Light Theme ----- */
 [data-theme="light"] {
-    --esg-primary: #2e7d32;
-    --esg-primary-light: #43a047;
-    --esg-primary-dark: #1b5e20;
-    --esg-secondary: #388e3c;
-    --esg-accent: #4caf50;
-    --bg-dark: #f0f4f8;
-    --bg-darker: #e2e8f0;
+    --esg-primary: #059669;
+    --esg-primary-light: #10b981;
+    --esg-primary-dark: #047857;
+    --esg-secondary: #10b981;
+    --esg-accent: #059669;
+    --bg-dark: #f8fafc;
+    --bg-darker: #f1f5f9;
     --bg-card: #ffffff;
     --bg-card-hover: #f8fafc;
-    --text-primary: #1a202c;
-    --text-secondary: #4a5568;
-    --text-muted: #a0aec0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
     --border-color: #e2e8f0;
-    --shadow-color: rgba(0, 0, 0, 0.08);
-    --sidebar-bg: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 50%, #e8f5e9 100%);
-    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-    --bg-body: #f0f4f8;
-    --ticker-bg: #1b5e20;
-    --modal-overlay: rgba(0, 0, 0, 0.4);
+    --shadow-color: rgba(15, 23, 42, 0.06);
+    --sidebar-bg: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    --card-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+    --bg-body: #f8fafc;
+    --ticker-bg: #059669;
+    --modal-overlay: rgba(15, 23, 42, 0.5);
 }
 
 [data-theme="light"] .sidebar-logo span {
-    -webkit-text-fill-color: #1b5e20;
+    -webkit-text-fill-color: #059669;
 }
 
-[data-theme="light"] .sidebar-logo i { color: #2e7d32; }
+[data-theme="light"] .sidebar-logo i { color: #059669; }
 
-[data-theme="light"] .nav-item { color: rgba(0, 0, 0, 0.7); }
+[data-theme="light"] .nav-item { color: rgba(15, 23, 42, 0.75); }
 
 [data-theme="light"] .nav-item:hover,
-[data-theme="light"] .nav-item.active { color: #1b5e20; background: rgba(46, 125, 50, 0.1); }
+[data-theme="light"] .nav-item.active { color: #059669; background: rgba(5, 150, 105, 0.1); }
 
-[data-theme="light"] .sidebar-subtitle { color: rgba(0, 0, 0, 0.5); }
+[data-theme="light"] .sidebar-subtitle { color: rgba(15, 23, 42, 0.5); }
 
-[data-theme="light"] .sidebar-footer p { color: rgba(0, 0, 0, 0.4); }
+[data-theme="light"] .sidebar-footer p { color: rgba(15, 23, 42, 0.4); }
 
 [data-theme="light"] .ai-chat-toggle .pulse-dot { border-color: var(--bg-dark); }
 
 [data-theme="light"] .page-title {
-    -webkit-text-fill-color: #1a202c;
+    -webkit-text-fill-color: #0f172a;
 }
 
-[data-theme="light"] .bot-bubble { background: rgba(0, 0, 0, 0.05); }
+[data-theme="light"] .bot-bubble { background: rgba(15, 23, 42, 0.05); }
 
 [data-theme="light"] .metric-item .metric-value {
-    -webkit-text-fill-color: #1a202c;
+    -webkit-text-fill-color: #0f172a;
 }
 
-[data-theme="light"] .hero-section { background: linear-gradient(135deg, #e8f5e9 0%, #f0f4f8 50%, #ffffff 100%); }
+[data-theme="light"] .hero-section { background: linear-gradient(135deg, #ecfdf5 0%, #f8fafc 50%, #ffffff 100%); }
 
 [data-theme="light"] .hero-title .highlight {
-    -webkit-text-fill-color: #2e7d32;
+    -webkit-text-fill-color: #059669;
 }
 
-[data-theme="light"] .hero-title { -webkit-text-fill-color: #1a202c; }
+[data-theme="light"] .hero-title { -webkit-text-fill-color: #0f172a; }
 
 [data-theme="light"] .stock-ticker,
-[data-theme="light"] .stock-price { color: #1a202c; }
+[data-theme="light"] .stock-price { color: #0f172a; }
 
-[data-theme="light"] .stock-select option { background: #fff; color: #1a202c; }
+[data-theme="light"] .stock-select option { background: #fff; color: #0f172a; }
 
-[data-theme="light"] .table-esg tbody tr:hover { background: rgba(46, 125, 50, 0.05); }
+[data-theme="light"] .table-esg tbody tr:hover { background: rgba(5, 150, 105, 0.05); }
 
 [data-theme="light"] .esg-metric-card.env .esg-metric-value { color: var(--env-color) !important; }
 [data-theme="light"] .esg-metric-card.social .esg-metric-value { color: var(--social-color) !important; }
 [data-theme="light"] .esg-metric-card.gov .esg-metric-value { color: var(--gov-color) !important; }
 
-/* ----- Base Styles ----- */
-* {
+/* ----- Base Styles & Ambient Atmosphere ----- */
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -120,15 +155,49 @@
 
 html {
     scroll-behavior: smooth;
+    font-size: 15px;
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-main);
     background-color: var(--bg-body);
+    background-image: 
+        radial-gradient(circle at 15% 10%, rgba(0, 245, 155, 0.07) 0%, transparent 40%),
+        radial-gradient(circle at 85% 25%, rgba(0, 210, 255, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 50% 80%, rgba(168, 85, 247, 0.04) 0%, transparent 50%);
+    background-attachment: fixed;
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-darker);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--esg-accent);
+}
+
+/* Tabular Numerics for Financials */
+.font-mono, .tick-price, .tick-change, .metric-value, .stat-value, .stock-price, .change-pill, .badge-percentage, .price-display, .stock-target, .price-val {
+    font-family: var(--font-mono) !important;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ----- SPA Top Loading Bar ----- */
@@ -264,10 +333,14 @@ body {
     50%  { background-color: rgba(244, 67, 54, 0.15); transform: scale(1.02); }
     100% { background-color: transparent; transform: scale(1); }
 }
-.navbar-ticker-item .tick-price.flash-up {
+.navbar-ticker-item .tick-price.flash-up,
+.stock-price.flash-up,
+.stock-price-card .stock-price.flash-up {
     animation: flashGreen 1.2s ease-out;
 }
-.navbar-ticker-item .tick-price.flash-down {
+.navbar-ticker-item .tick-price.flash-down,
+.stock-price.flash-down,
+.stock-price-card .stock-price.flash-down {
     animation: flashRed 1.2s ease-out;
 }
 
@@ -4037,5 +4110,349 @@ body {
     color: #00e676;
     transform: translateY(-1px);
 }
+
+/* ============================================================
+   EXTREME UI/UX SUITE v3.0 - MASTER HIGH-END FINTECH STYLING
+   ============================================================ */
+
+/* --- Ultra Glass Card Containers --- */
+.glass-card,
+.card-esg,
+.stat-card-premium,
+.dashboard-card,
+.portfolio-card,
+.prediction-box {
+    background: linear-gradient(135deg, rgba(14, 28, 48, 0.6) 0%, rgba(7, 16, 29, 0.75) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 20px !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.glass-card::after,
+.card-esg::after,
+.stat-card-premium::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+    transform: skewX(-25deg);
+    transition: left 0.75s ease;
+    pointer-events: none;
+}
+
+.glass-card:hover::after,
+.card-esg:hover::after,
+.stat-card-premium:hover::after {
+    left: 200%;
+}
+
+.glass-card:hover,
+.card-esg:hover,
+.stat-card-premium:hover {
+    transform: translateY(-4px);
+    border-color: rgba(0, 245, 155, 0.25) !important;
+    box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.75), 0 0 25px rgba(0, 245, 155, 0.12) !important;
+}
+
+/* --- Hero Section Elevation --- */
+.hero-section {
+    background: linear-gradient(135deg, rgba(8, 20, 36, 0.8) 0%, rgba(4, 10, 18, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 28px;
+    padding: 3.5rem 3rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    margin-bottom: 2.5rem;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    right: -80px;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(0, 245, 155, 0.15) 0%, rgba(0, 210, 255, 0.08) 50%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: heroOrbPulse 8s ease-in-out infinite alternate;
+}
+
+@keyframes heroOrbPulse {
+    0% { transform: scale(1) translate(0, 0); opacity: 0.8; }
+    100% { transform: scale(1.15) translate(-20px, 20px); opacity: 1; }
+}
+
+.hero-title {
+    font-size: clamp(2.4rem, 4vw, 3.8rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+    margin-bottom: 1.25rem;
+}
+
+.hero-title .highlight {
+    background: linear-gradient(135deg, #00f59b 0%, #00d2ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: inline-block;
+    filter: drop-shadow(0 0 25px rgba(0, 245, 155, 0.3));
+}
+
+.hero-subtitle {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    max-width: 620px;
+    margin-bottom: 2rem;
+}
+
+/* --- High-Energy Futuristic Buttons --- */
+.btn-esg,
+.btn-primary-cyber {
+    background: linear-gradient(135deg, #00f59b 0%, #00c853 100%);
+    color: #030a14 !important;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.85rem 1.8rem;
+    border-radius: 14px;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    box-shadow: 0 8px 24px -4px rgba(0, 245, 155, 0.4), 0 0 0 1px rgba(0, 245, 155, 0.2);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-esg:hover,
+.btn-primary-cyber:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 32px -4px rgba(0, 245, 155, 0.6), 0 0 25px rgba(0, 245, 155, 0.35);
+    color: #000000 !important;
+}
+
+.btn-outline-esg,
+.btn-secondary-cyber {
+    background: rgba(16, 32, 54, 0.6);
+    color: #ffffff !important;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.85rem 1.8rem;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-outline-esg:hover,
+.btn-secondary-cyber:hover {
+    background: rgba(25, 48, 80, 0.85);
+    border-color: rgba(0, 245, 155, 0.4);
+    color: #00f59b !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 245, 155, 0.15);
+}
+
+/* --- Top Navbar Refinement --- */
+.top-navbar {
+    background: rgba(6, 13, 23, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.85rem 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    margin-bottom: 2rem;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.page-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.page-title i {
+    color: var(--esg-accent);
+    filter: drop-shadow(0 0 8px var(--esg-glow));
+}
+
+.datetime-display {
+    background: rgba(14, 28, 48, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.45rem 1rem;
+    border-radius: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.datetime-display i {
+    color: var(--esg-accent);
+}
+
+/* --- Metric Stats Upgrade --- */
+.stat-card-premium {
+    padding: 1.5rem 1.6rem !important;
+}
+
+.stat-card-premium .stat-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    background: linear-gradient(135deg, rgba(0, 245, 155, 0.15), rgba(0, 210, 255, 0.15));
+    border: 1px solid rgba(0, 245, 155, 0.3);
+    color: #00f59b;
+    box-shadow: 0 0 15px rgba(0, 245, 155, 0.15);
+}
+
+.stat-card-premium .stat-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+}
+
+.stat-card-premium .stat-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+/* --- Signal Badges --- */
+.verdict-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.verdict-badge.buy {
+    background: rgba(0, 245, 155, 0.15);
+    color: #00f59b;
+    border: 1px solid rgba(0, 245, 155, 0.4);
+    box-shadow: 0 0 20px rgba(0, 245, 155, 0.25);
+}
+
+.verdict-badge.sell {
+    background: rgba(255, 51, 102, 0.15);
+    color: #ff3366;
+    border: 1px solid rgba(255, 51, 102, 0.4);
+    box-shadow: 0 0 20px rgba(255, 51, 102, 0.25);
+}
+
+.verdict-badge.hold {
+    background: rgba(255, 184, 0, 0.15);
+    color: #ffb800;
+    border: 1px solid rgba(255, 184, 0, 0.4);
+    box-shadow: 0 0 20px rgba(255, 184, 0, 0.25);
+}
+
+/* --- Next-Gen Fintech Form Inputs --- */
+.form-control,
+.form-select {
+    background: rgba(13, 27, 46, 0.7) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1.1rem !important;
+    font-family: var(--font-main) !important;
+    font-size: 0.95rem !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    transition: all 0.25s ease !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background: rgba(18, 36, 62, 0.85) !important;
+    border-color: var(--esg-accent) !important;
+    box-shadow: 0 0 0 3px rgba(0, 245, 155, 0.2), 0 0 15px rgba(0, 245, 155, 0.15) !important;
+}
+
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* --- High Contrast Modern Tables --- */
+.table-esg,
+.table-custom {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--text-primary);
+}
+
+.table-esg th,
+.table-custom th {
+    background: rgba(14, 28, 48, 0.75);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-esg td,
+.table-custom td {
+    padding: 0.95rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.92rem;
+    vertical-align: middle;
+    transition: background 0.2s ease;
+}
+
+.table-esg tbody tr:hover td,
+.table-custom tbody tr:hover td {
+    background: rgba(0, 245, 155, 0.04);
+}
+
 
 

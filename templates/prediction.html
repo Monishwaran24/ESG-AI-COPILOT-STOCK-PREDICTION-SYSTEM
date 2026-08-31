@@ -122,8 +122,8 @@
                           <i class="bi bi-broadcast me-1"></i> Live
                         </span>
                       </div>
-                      <div class="stock-price my-2"><span class="currency">{{ result.currency_symbol }}</span>{{ "%.2f"|format(result.current_price) }}</div>
-                      <div class="stock-change {{ 'positive' if result.price_change_pct >= 0 else 'negative' }} mb-2">
+                      <div class="stock-price my-2" data-live-price="{{ result.ticker }}" data-currency="{{ result.currency_symbol }}"><span class="currency">{{ result.currency_symbol }}</span>{{ "%.2f"|format(result.current_price) }}</div>
+                      <div class="stock-change {{ 'positive' if result.price_change_pct >= 0 else 'negative' }} mb-2" data-live-change="{{ result.ticker }}">
                         <i class="bi bi-{{ 'arrow-up' if result.price_change_pct >= 0 else 'arrow-down' }}"></i> {{ "%.2f"|format(result.price_change_pct) }}%
                       </div>
                     </div>
@@ -426,11 +426,14 @@
                       </span>
                       <span class="news-headline-text">
                         <span class="news-headline-title">{{ hl.title }}</span>
-                        <span class="news-headline-meta">
-                          <span class="news-source">{{ hl.source }}</span>
-                          {% if hl.published_at %}
-                          <span class="news-date">{{ hl.published_at }}</span>
+                        <span class="news-headline-meta d-flex align-items-center gap-2 mt-1">
+                          <span class="badge bg-secondary bg-opacity-25 text-light small py-0.5 px-1.5">{{ hl.source }}</span>
+                          {% if hl.timeago %}
+                          <span class="news-date font-mono text-secondary"><i class="bi bi-clock me-1"></i>{{ hl.timeago }}</span>
+                          {% elif hl.published_at %}
+                          <span class="news-date font-mono text-secondary"><i class="bi bi-calendar3 me-1"></i>{{ hl.published_at }}</span>
                           {% endif %}
+                          <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 small" style="font-size:0.6rem;">LIVE</span>
                         </span>
                       </span>
                       <span class="news-open-link"><i class="bi bi-box-arrow-up-right"></i></span>
@@ -593,7 +596,22 @@
             } catch(e) { /* gauge render is best-effort */ }
 
             {% if result and result.ticker %}
-            setTimeout(function() {
+            window._activePredictionTicker = "{{ result.ticker }}";
+            window._activePredictionPrice = {{ result.current_price }};
+            window._activePredictionChange = {{ result.price_change_pct }};
+            window._activePredictionCurrency = "{{ result.currency_symbol }}";
+
+            function syncActivePredictionStock() {
+                if (window.ESGPriceEngine) {
+                    window.ESGPriceEngine.setActiveTicker("{{ result.ticker }}");
+                    window.ESGPriceEngine.registerStock({
+                        ticker: "{{ result.ticker }}",
+                        basePrice: {{ result.current_price }},
+                        currentPrice: {{ result.current_price }},
+                        changePct: {{ result.price_change_pct }},
+                        currencySymbol: "{{ result.currency_symbol }}"
+                    });
+                }
                 if (typeof renderCandlestickChart === 'function') {
                     if (typeof _candleRendering !== 'undefined') _candleRendering = false;
                     renderCandlestickChart("{{ result.ticker }}", '3mo');
@@ -601,7 +619,14 @@
                 if (typeof renderXAI === 'function') {
                     renderXAI("{{ result.ticker }}");
                 }
-            }, 100);
+            }
+
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                setTimeout(syncActivePredictionStock, 50);
+            } else {
+                document.addEventListener('DOMContentLoaded', syncActivePredictionStock);
+            }
+            window.addEventListener('load', syncActivePredictionStock);
             {% endif %}
         })();
         </script>

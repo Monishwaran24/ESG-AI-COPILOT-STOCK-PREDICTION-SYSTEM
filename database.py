@@ -201,9 +201,23 @@ def init_db():
                 alert_type TEXT DEFAULT 'strong_sentiment',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 user_id INTEGER DEFAULT 1,
-                is_read INTEGER DEFAULT 0
+                is_read INTEGER DEFAULT 0,
+                headline_text TEXT,
+                url TEXT
             );
         ''')
+        conn.commit()
+    except Exception:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE news_alerts ADD COLUMN headline_text TEXT")
+        conn.commit()
+    except Exception:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE news_alerts ADD COLUMN url TEXT")
         conn.commit()
     except Exception:
         pass
@@ -479,16 +493,16 @@ def get_alerts_enabled_stocks():
     conn.close()
     return [r['ticker'] for r in rows]
 
-def save_news_alert(ticker, sentiment_label, avg_polarity, article_count, alert_type='strong_sentiment'):
+def save_news_alert(ticker, sentiment_label, avg_polarity, article_count, alert_type='strong_sentiment', headline_text='', url=''):
     """Log a news sentiment alert to prevent duplicate notifications."""
     conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute('''
-            INSERT OR IGNORE INTO news_alerts
-                (ticker, sentiment_label, avg_polarity, article_count, alert_type, user_id)
-            VALUES (?, ?, ?, ?, ?, 1)
-        ''', (ticker.upper(), sentiment_label, avg_polarity, article_count, alert_type))
+            INSERT INTO news_alerts
+                (ticker, sentiment_label, avg_polarity, article_count, alert_type, headline_text, url, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        ''', (ticker.upper(), sentiment_label, avg_polarity, article_count, alert_type, headline_text, url))
         conn.commit()
         return True
     except Exception:
@@ -505,7 +519,7 @@ def get_unread_alert_count():
     conn.close()
     return count
 
-def get_recent_alerts(limit=10):
+def get_recent_alerts(limit=50):
     """Get recent news alerts."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -524,6 +538,22 @@ def mark_alerts_read():
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("UPDATE news_alerts SET is_read = 1 WHERE user_id = 1")
+    conn.commit()
+    conn.close()
+
+def mark_single_alert_read(alert_id):
+    """Mark a single alert as read."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE news_alerts SET is_read = 1 WHERE id = ? AND user_id = 1", (alert_id,))
+    conn.commit()
+    conn.close()
+
+def delete_alert(alert_id):
+    """Delete a single alert."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM news_alerts WHERE id = ? AND user_id = 1", (alert_id,))
     conn.commit()
     conn.close()
 
